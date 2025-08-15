@@ -1,5 +1,4 @@
-## Directions to run the backend
-First, `cd` into the backend folder 
+# Directions to run the backend
 
 ## 1. Virtual Environment
 (ignore this step if already have venv) If there isn't a venv folder, run `python3 -m venv venv` in terminal to create an venv.
