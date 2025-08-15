@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.9-slim-buster
+FROM python:3.9-slim-bullseye
 
 # Set the working directory in the container
 WORKDIR /app
@@ -12,9 +12,6 @@ COPY requirements.txt .
 RUN apt-get update
 
 RUN apt-get install -y libpq-dev gcc
-
-# Copy the requirements file into the container at /app (moved here to ensure build deps are present first)
-COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
