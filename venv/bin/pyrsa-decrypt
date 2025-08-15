@@ -1,4 +1,4 @@
-#!/Users/cicige/Documents/CMUCal-v2/cmucal/backend/venv/bin/python3
+#!/Users/cicige/Documents/CMUCal-v2/cmucal-backend/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
