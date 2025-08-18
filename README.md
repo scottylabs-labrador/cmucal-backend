@@ -22,8 +22,10 @@ Open a terminal (in the backend folder with virtual environment), run `python ru
 
 ## 4. Course data
 (ignore this unless told otherwise) IF need to scrape data from cmu schedule of classes
-- first follow the instructions in the `rust` directory's README file. 
-- Then, cd into the backend folder, and run `flask import-courses`
+- `git checkout rust` 
+- Follow the instructions in the `rust` directory's README file. 
+- Then `git checkout main` 
+- Run `flask import-courses`
 
 ## Dev To-do
 - remove `os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"` after flask app has been deployed. This is only for developmet environment.
