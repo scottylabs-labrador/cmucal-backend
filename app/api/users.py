@@ -19,7 +19,7 @@ users_bp = Blueprint("users", __name__)
 def get_user_id():
     with SessionLocal() as db:
         try:
-            clerk_id = request.args.get("clerk_id")
+            clerk_id = request.headers.get('Clerk-User-Id')
             if not clerk_id:
                 return jsonify({"error": "Missing clerk_id"}), 400
             
@@ -195,7 +195,7 @@ def get_admin_categories():
     print("Route /get_admin_categories was called")
     with SessionLocal() as db:
         try:
-            clerk_id = request.args.get("clerk_id")
+            clerk_id = request.headers.get('Clerk-User-Id')
 
             user = get_user_by_clerk_id(db, clerk_id)
 
