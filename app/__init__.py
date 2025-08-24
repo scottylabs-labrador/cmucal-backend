@@ -10,7 +10,7 @@ from flask_cors import CORS
 from app.api.users import users_bp
 from app.api.organizations import orgs_bp
 from app.api.base import base_bp
-from app.api.google_oauth import google_bp
+from app.api.google import google_bp
 from app.api.events import events_bp
 from app.api.schedule import schedule_bp
 from app.services.db import SessionLocal, Base
@@ -28,18 +28,22 @@ def create_app():
     app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
     app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
     app.config["FRONTEND_REDIRECT_URI"] = os.getenv("FRONTEND_REDIRECT_URI")
-    
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI")
+
     app.config["GOOGLE_CLIENT_SECRET_FILE"] = "client_secret.json" 
 
     app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
     app.config["SUPABASE_API_KEY"] = os.getenv("SUPABASE_API_KEY")
     app.config["SUPABASE_DB_URL"] = os.getenv("SUPABASE_DB_URL")
 
+
+    origins = [o.strip() for o in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,https://cmucal.vercel.app,http://cmucal.com"
+    ).split(",")]
+    
+
     CORS(app, resources={r"/api/*": {
-        "origins": "http://localhost:3000",
+        "origins": origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Clerk-User-Id"],
     }}, supports_credentials=True)
