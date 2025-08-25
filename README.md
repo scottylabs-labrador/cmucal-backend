@@ -1,5 +1,15 @@
 # Directions to run the backend
 
+## 0. Git Ignore
+Make a `.gitignore` file in the root directory and include the following code:
+```
+client_secret.json
+.env
+venv/
+**/__pycache__/
+*.pyc
+```
+
 ## 1. Virtual Environment
 (ignore this step if already have venv) If there isn't a venv folder, run `python3 -m venv venv` in terminal to create an venv.
 
