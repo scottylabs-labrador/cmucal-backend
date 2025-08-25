@@ -392,7 +392,7 @@ def get_all_events():
     with SessionLocal() as db:
         try:
             # get user
-            clerk_id = request.args.get("user_id")
+            clerk_id = request.headers.get("Clerk-User-Id")
             if not clerk_id:
                 return jsonify({"error": "Missing user_id"}), 400
             user = get_user_by_clerk_id(db, clerk_id)
