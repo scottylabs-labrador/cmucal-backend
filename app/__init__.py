@@ -38,7 +38,7 @@ def create_app():
 
     origins = [o.strip() for o in os.getenv(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000,https://cmucal.vercel.app,http://cmucal.com"
+        "http://localhost:3000,https://cmucal.vercel.app,http://cmucal.com,https://cal.scottylabs.org"
     ).split(",")]
     
 

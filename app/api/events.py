@@ -209,7 +209,7 @@ def read_gcal_link():
                 existing_category_ical = category_ical
 
             db.commit()  # Only commit if all succeeded
-            return jsonify({"status": "gcal link processed and stored at calendar_source " + str(existing_calendar_source.id)}), 201
+            return jsonify({"message": "gcal link processed...", "calendar_source_id": existing_calendar_source.id}), 201
 
         except Exception as e:
             db.rollback()
