@@ -1,6 +1,6 @@
 # Updated README
-
-Run:
+1. `cd scraper`
+2. Run:
 `python exporters/handshake_export_to_excel.py`
 `python exporters/tartanconnect_export_to_excel.py`
 `python exporters/si_export_to_excel.py`
