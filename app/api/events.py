@@ -8,8 +8,8 @@ from app.models.admin import get_admin_by_org_and_user
 from app.models.club import save_club
 from app.models.tag import get_tag_by_name, save_tag, get_all_tags
 from app.models.event_tag import save_event_tag, get_tags_by_event, delete_event_tag
-from app.models.recurrence_rule import add_recurrence_rule
-from app.models.event_occurrence import populate_event_occurrences, save_event_occurrence
+from app.models.recurrence_rule import add_recurrence_rule, get_recurrence_rule_by_event, update_recurrence_rule
+from app.models.event_occurrence import populate_event_occurrences, save_event_occurrence, update_event_occurrence
 from app.models.category import category_to_dict, get_category_by_id
 from app.models.models import CalendarSource, CategoryIcal, Event, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
 import pprint
@@ -481,7 +481,7 @@ def get_specific_events(event_id):
             print("❌ Exception:", traceback.format_exc())
             return jsonify({"error": str(e)}), 500
 
-@events_bp.route("/<event_id>", methods=["PATCH"])
+@events_bp.route("/<event_id>", methods=["PATCH", "PUT"])
 def update_event(event_id):
     print("🔗🔢", request.url)
     with SessionLocal() as db:
@@ -491,7 +491,15 @@ def update_event(event_id):
             
             event_data = data.get("updated_event", None)
             tag_data = data.get("updated_tags", None)
-            recurrence_data = data.get("updated_recurrence", None)
+            recurrence = data.get("updated_recurrence", None)
+            clerk_id = data.get("clerk_id", None)
+
+            user_edited = data.get("user_edited", [])
+            user = get_user_by_clerk_id(db, clerk_id)
+            if not user:
+                db.rollback()
+                return jsonify({"error": "User not found"}), 404
+            user_edited.append(user.id)
 
             if not event_data: 
                 return jsonify({"error": "No event data provided"}), 400
@@ -504,6 +512,7 @@ def update_event(event_id):
             for key, value in event_data.items(): 
                 if hasattr(event, key):
                     setattr(event, key, value)
+            # event["user_edited"]=user_edited # idk is this correct??
 
             # update event tag
             if tag_data:
@@ -524,10 +533,48 @@ def update_event(event_id):
                         tag = get_tag_by_name(db, tag_name)
                         delete_event_tag(db, event_id=event_id, tag_id=tag.id)
 
+            # TODO: update recurrence table and occurrences
+
+            if recurrence and recurrence != "ONETIME":
+                recurrence_data = data.get("recurrence_data", {})
+                if not recurrence_data:
+                    db.rollback()
+                    return jsonify({"error": "Missing recurrence data"}), 400
+                print("🔋UPDATING RECURRENCE RULE! 🔋")
+                rule = update_recurrence_rule(db,  
+                                    event_id=event.id, 
+                                    frequency=recurrence_data.get("frequency"),
+                                    interval=recurrence_data.get("interval"),
+                                    start_datetime=recurrence_data.get("start_datetime"),
+                                    count=recurrence_data.get("count", None),
+                                    until=recurrence_data.get("until", None),
+                                    by_day=recurrence_data.get("by_day", None),
+                                    by_month_day=recurrence_data.get("by_month_day", None),
+                                    by_month=recurrence_data.get("by_month", None))
+                occurrence_msg = populate_event_occurrences(db, event=event, rule=rule)
+            else:
+                if not recurrence == "EXCEPTION":
+                    event_saved_at = event.last_updated_at
+                else:
+                    event_saved_at = datetime.utcnow()
+                
+                event_occurrence = update_event_occurrence(db, 
+                                                    event_id=event.id, 
+                                                    org_id=org_id, 
+                                                    category_id=category_id, 
+                                                    title=title,
+                                                    start_datetime=start_datetime,
+                                                    end_datetime=end_datetime,
+                                                    recurrence=recurrence,
+                                                    event_saved_at=event_saved_at,
+                                                    is_all_day=is_all_day,
+                                                    user_edited=user_edited,
+                                                    description=description,
+                                                    location=location,
+                                                    source_url=source_url)
+
 
             # TODO: update the corresponding type table (academic/career/club)
-
-            # TODO: update recurrence table
 
             db.commit()
 
@@ -674,6 +721,43 @@ def get_event_category(category_id):
             print("-------------------\n", jsonify(category_to_dict(category)), "-------------------\n")
             return jsonify(category_to_dict(category))
         
+        except Exception as e:
+            db.rollback()
+            import traceback
+            print("❌ Exception:", traceback.format_exc())
+            return jsonify({"error": str(e)}), 500
+
+@events_bp.route("<event_id>/recurrence", methods=["GET"])
+def get_event_recurrence(event_id):
+    with SessionLocal() as db:
+        try:
+            rule = get_recurrence_rule_by_event(db, event_id)
+            print("📏", rule)
+            if not rule:
+                print("no rule found ig")
+                return 
+                # raise HTTPException(status_code=404, detail="No recurrence rule found for this event")
+            #     repeat = "none"
+            # if rule.count is None and rule.until is None:
+            #     repeat = rule.frequency.value.lower()  # "daily", "weekly", etc.
+            # else:
+            #     repeat = "custom"
+
+            recurrence_rule_data = {
+                "frequency": rule.frequency.value, # converts FrequencyType.DAILY -> "DAILY"
+                "interval": rule.interval,
+                "start_datetime": rule.start_datetime.isoformat(),
+                "count": rule.count,
+                "until": rule.until.isoformat() if rule.until else None,
+                "by_month": rule.by_month,
+                "by_month_day": rule.by_month_day,
+                "by_day": rule.by_day, 
+                # "repeat": repeat,
+            }
+            print("😵😵😵 FETCHED RECRULE", recurrence_rule_data)
+
+            return recurrence_rule_data
+
         except Exception as e:
             db.rollback()
             import traceback
