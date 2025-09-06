@@ -1,3 +1,13 @@
+# Updated README
+
+Run:
+`python exporters/handshake_export_to_excel.py`
+`python exporters/tartanconnect_export_to_excel.py`
+`python exporters/si_export_to_excel.py`
+`python exporters/peer_tutoring_export_to_excel.py`
+
+# Old README
+
 To use, first create a virtual environment: `python3 -m venv <myenvname>`
 
 Then activate it:
