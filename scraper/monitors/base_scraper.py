@@ -19,6 +19,9 @@ class BaseScraper:
 
     def scrape(self):
         raise NotImplementedError("Scrape method must be implemented by subclasses.")
+    
+    def scrape_data_only(self):
+        raise NotImplementedError("scrape_data_only method must be implemented by subclasses.")
 
     def get_next_weekday(self, weekday):
         """

@@ -95,3 +95,18 @@ class PeerTutoringScraper(BaseScraper):
         # Update the database
         unique_keys = ["resource_type", "course_id", "instructor"]
         self.update_database(resources, "academic_events", unique_keys)
+    
+    def scrape_data_only(self):
+        """Return scraped resources without database operations."""
+        # Call the existing scrape method but capture resources before database update
+        original_update = self.update_database
+        captured_resources = []
+        
+        def capture_resources(resources, collection_name, unique_keys):
+            captured_resources.extend(resources)
+        
+        self.update_database = capture_resources
+        self.scrape()
+        self.update_database = original_update
+        
+        return captured_resources
