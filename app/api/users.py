@@ -1,5 +1,6 @@
+from sqlite3 import IntegrityError
 from flask import Blueprint, jsonify, request
-from app.models.user import get_user_by_clerk_id, create_user, user_to_dict
+from app.models.user import get_user_by_clerk_id, get_user_by_email, create_user, user_to_dict
 from app.services.google_service import fetch_user_credentials
 from app.models.user import update_user_calendar_id
 from app.services.google_service import create_cmucal_calendar
@@ -47,19 +48,42 @@ def handle_login():
 
             if not clerk_id or not email:
                 return jsonify({"error": "Missing clerk_id or email"}), 400
+            
+            # 1) Find by EMAIL first
+            user = get_user_by_email(db, email)
 
-            user = get_user_by_clerk_id(db, clerk_id)
-            if user is None:
-                create_user(
-                    db, clerk_id,
-                    email=email,
-                    fname=fname,
-                    lname=lname
-                )
-                # re-fetch to get the DB-generated _id and calendar_id
+            if user:
+                # If the stored clerk_id is missing or differs, update it to the one we just got
+                if user.clerk_id != clerk_id:
+                    # Optional: if another row is already using this clerk_id, clear it first to avoid unique conflicts
+                    other = get_user_by_clerk_id(db, clerk_id)
+                    if other and other.id != user.id:
+                        other.clerk_id = None  # or handle a merge if you keep data on 'other'
+                        db.add(other)
+
+                    user.clerk_id = clerk_id
+                    db.add(user)
+                    try:
+                        db.commit()
+                    except IntegrityError:
+                        db.rollback()
+                        return jsonify({"error": "clerk_id already linked to another user"}), 409
+
+                    db.refresh(user)
+            else:
+                # 2) If not found by email, find by CLERK_ID
                 user = get_user_by_clerk_id(db, clerk_id)
-                # print("→ Created user:", user)
-                # print("→ Dict:", user_to_dict(user))
+                if user is None:
+                    create_user(
+                        db, clerk_id,
+                        email=email,
+                        fname=fname,
+                        lname=lname
+                    )
+                    # re-fetch to get the DB-generated _id and calendar_id
+                    user = get_user_by_clerk_id(db, clerk_id)
+                    # print("→ Created user:", user)
+                    # print("→ Dict:", user_to_dict(user))
 
             if not user.calendar_id:
                 # create a new calendar for the user

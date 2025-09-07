@@ -22,18 +22,18 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 def create_app():
     app = Flask(__name__)
 
-    # app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-    # app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-    # app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
-    # app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
-    # app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
-    # app.config["FRONTEND_REDIRECT_URI"] = os.getenv("FRONTEND_REDIRECT_URI")
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+    app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
+    app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
+    app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
+    app.config["FRONTEND_REDIRECT_URI"] = os.getenv("FRONTEND_REDIRECT_URI")
 
-    # app.config["GOOGLE_CLIENT_SECRET_FILE"] = "client_secret.json" 
+    app.config["GOOGLE_CLIENT_SECRET_FILE"] = "client_secret.json" 
 
-    # app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
-    # app.config["SUPABASE_API_KEY"] = os.getenv("SUPABASE_API_KEY")
-    # app.config["SUPABASE_DB_URL"] = os.getenv("SUPABASE_DB_URL")
+    app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
+    app.config["SUPABASE_API_KEY"] = os.getenv("SUPABASE_API_KEY")
+    app.config["SUPABASE_DB_URL"] = os.getenv("SUPABASE_DB_URL")
 
 
     origins = [o.strip() for o in os.getenv(
