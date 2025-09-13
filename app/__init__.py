@@ -26,7 +26,7 @@ print(f"[init] Detected APP_ENV={ENV}")
 if ENV != "production":
     dotfile = f".env.{ENV}"
     if Path(dotfile).exists():
-        load_dotenv(dotfile, override=True)
+        load_dotenv(dotfile, override=False)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from app.services.db import SessionLocal, Base
@@ -40,6 +40,7 @@ def create_app():
 
     # HTTPS-aware defaults in prod
     if ENV == "production":
+        app.config.from_object(ProductionConfig)
         app.config.update(
             PREFERRED_URL_SCHEME="https",
             SESSION_COOKIE_SECURE=True,
