@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.models.user import get_user_by_clerk_id, create_user, user_to_dict
+from app.models.user import get_user_by_clerk_id, create_user, user_to_dict, get_user_by_email
 from app.services.google_service import fetch_user_credentials
 from app.models.user import update_user_calendar_id
 from app.services.google_service import create_cmucal_calendar

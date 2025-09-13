@@ -20,9 +20,11 @@ def create_user(db, clerk_id, **kwargs):
     db.refresh(user)
     return user
 
+def get_user_by_email(db, email: str):
+    return db.query(User).filter(User.email == email).first()
+
 def get_user_by_clerk_id(db, clerk_id):
     return db.query(User).filter(User.clerk_id == clerk_id).first()
-
 
 def update_user_calendar_id(db, clerk_id, calendar_id):
     user = db.query(User).filter(User.clerk_id == clerk_id).first()
