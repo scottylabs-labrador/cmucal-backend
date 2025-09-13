@@ -5,11 +5,26 @@ from pathlib import Path
 from flask import Flask
 
 # Load environment variables from .env file BEFORE other imports
-env = (os.getenv("APP_ENV") or "production").lower()
+def detect_env() -> str:
+    # Respect explicit setting (e.g., in Railway dashboard)
+    app_env = os.getenv("APP_ENV")
+    if app_env:
+        return app_env.lower()
+
+    # Heuristic: if we’re on Railway and APP_ENV isn’t set, assume production
+    if os.getenv("RAILWAY_PROJECT_ID") or os.getenv("RAILWAY_ENVIRONMENT"):
+        return "production"
+
+    # Local default
+    return "development"
+
+ENV = detect_env()
     
-# Only load .env.<env> for NON-production
-if env != "production":
-    load_dotenv(f".env.{env}", override=True)
+# Only load local .env files outside production
+if ENV != "production":
+    dotfile = f".env.{ENV}"
+    if Path(dotfile).exists():
+        load_dotenv(dotfile, override=True)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from app.services.db import SessionLocal, Base
@@ -19,9 +34,9 @@ def create_app():
     app = Flask(__name__)
 
 
-    if env == "production":
+    if ENV == "production":
         app.config.from_object(ProductionConfig)
-    elif env == "test":
+    elif ENV == "test":
         app.config.from_object(TestingConfig)
     else:
         app.config.from_object(DevelopmentConfig)
