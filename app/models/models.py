@@ -322,7 +322,7 @@ class ScheduleCategory(Base):
     __tablename__ = 'schedule_categories'
     __table_args__ = (
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='schedule_categories_category_id_fkey'),
-        ForeignKeyConstraint(['schedule_id'], ['schedules.id'], ondelete='CASCADE', name='schedule_categories_category_id_fkey'),
+        ForeignKeyConstraint(['schedule_id'], ['schedules.id'], ondelete='CASCADE', name='schedule_categories_schedule_id_fkey'),
         PrimaryKeyConstraint('schedule_id', 'category_id', name='schedule_categories_pkey')
     )
 
