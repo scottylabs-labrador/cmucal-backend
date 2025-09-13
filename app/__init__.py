@@ -5,7 +5,7 @@ from pathlib import Path
 from flask import Flask
 
 # Load environment variables from .env file BEFORE other imports
-env = (os.getenv("APP_ENV") or "development").lower()
+env = (os.getenv("APP_ENV") or "production").lower()
 load_dotenv(Path(f".env.{env}"), override=True)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
