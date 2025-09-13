@@ -6,7 +6,10 @@ from flask import Flask
 
 # Load environment variables from .env file BEFORE other imports
 env = (os.getenv("APP_ENV") or "production").lower()
-load_dotenv(Path(f".env.{env}"), override=True)
+    
+# Only load .env.<env> for NON-production
+if env != "production":
+    load_dotenv(f".env.{env}", override=True)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from app.services.db import SessionLocal, Base
