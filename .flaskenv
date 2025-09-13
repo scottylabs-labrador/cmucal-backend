@@ -1,4 +1,4 @@
-FLASK_APP=run.py
+# FLASK_APP=run.py
 # change to test/production as needed
 # APP_ENV=development   
 # dev only

@@ -19,6 +19,7 @@ def detect_env() -> str:
     return "development"
 
 ENV = detect_env()
+print(f"[init] Detected APP_ENV={ENV}")
     
 # Only load local .env files outside production
 if ENV != "production":
