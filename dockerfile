@@ -18,5 +18,4 @@ RUN pip install --upgrade pip \
 COPY . .
 
 # Start Gunicorn; Railway provides $PORT
-# run.py must expose `app = create_app()` (which you already have)
-CMD ["sh", "-c", "exec gunicorn 'run:app' -b 0.0.0.0:${PORT:-5001} --workers ${WEB_CONCURRENCY:-2} --threads ${GTHREADS:-4} --timeout ${TIMEOUT:-120} --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "exec gunicorn 'run:app' -b 0.0.0.0:${PORT:-8080} --workers ${WEB_CONCURRENCY:-2} --threads ${GTHREADS:-4} --timeout ${TIMEOUT:-120} --access-logfile - --error-logfile -"]
