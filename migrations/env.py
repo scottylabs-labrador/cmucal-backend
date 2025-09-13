@@ -1,9 +1,16 @@
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
+from sqlalchemy import engine_from_config, pool
 from alembic import context
+
+# load per-env dotenv files so Alembic sees your secrets
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# load .flaskenv to get APP_ENV, then the matching .env.{env}
+load_dotenv(".flaskenv")  # contains APP_ENV
+env = (os.getenv("APP_ENV") or "development").lower()
+load_dotenv(Path(f".env.{env}"), override=True)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -51,7 +58,10 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
-        include_object=include_object,
+        include_object=include_object,         
+        compare_type=True,                     
+        compare_server_default=True,           
+        # render_nullability=True,             # optional but handy
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -75,7 +85,12 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,    
+            compare_type=True,                 
+            compare_server_default=True,       
+            # render_nullability=True,         # optional
         )
 
         with context.begin_transaction():
