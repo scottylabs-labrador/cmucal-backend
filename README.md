@@ -37,5 +37,3 @@ Open a terminal (in the backend folder with virtual environment), run `python ru
 - Then `git checkout main` 
 - Run `flask import-courses`
 
-## Dev To-do
-- remove `os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"` after flask app has been deployed. This is only for developmet environment.
