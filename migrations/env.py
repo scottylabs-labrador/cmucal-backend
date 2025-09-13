@@ -12,9 +12,19 @@ load_dotenv(".flaskenv")  # contains APP_ENV
 env = (os.getenv("APP_ENV") or "development").lower()
 load_dotenv(Path(f".env.{env}"), override=True)
 
+os.environ["ALEMBIC_RUNNING"] = "1"
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# set sqlalchemy.url from env at runtime
+db_url = os.getenv("SUPABASE_DB_URL")
+if not db_url:
+    raise RuntimeError("SUPABASE_DB_URL is not set")
+config.set_main_option("sqlalchemy.url", db_url)
+
+print(f"[alembic] APP_ENV={env}  url_driver={db_url.split('://',1)[0]}")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -23,6 +33,10 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
+# from app.models import Base
+
+# from app.services.db import Base
+# from app.models.models import *
 from app.models import Base
 target_metadata = Base.metadata
 
