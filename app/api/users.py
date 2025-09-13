@@ -1,3 +1,4 @@
+from sqlite3 import IntegrityError
 from flask import Blueprint, jsonify, request
 from app.models.user import get_user_by_clerk_id, create_user, user_to_dict, get_user_by_email
 from app.services.google_service import fetch_user_credentials
