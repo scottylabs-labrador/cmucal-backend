@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from flask import Flask
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables from .env file BEFORE other imports
 def detect_env() -> str:
@@ -11,22 +10,16 @@ def detect_env() -> str:
     app_env = os.getenv("APP_ENV")
     if app_env:
         return app_env.lower()
-
-    # Heuristic: if we’re on Railway and APP_ENV isn’t set, assume production
+    # If we’re on Railway and APP_ENV isn’t set, assume production
     if os.getenv("RAILWAY_PROJECT_ID") or os.getenv("RAILWAY_ENVIRONMENT"):
         return "production"
-
     # Local default
     return "development"
 
 ENV = detect_env()
 print(f"[init] Detected APP_ENV={ENV}")
-    
-# Only load local .env files outside production
-if ENV != "production":
-    dotfile = f".env.{ENV}"
-    if Path(dotfile).exists():
-        load_dotenv(dotfile, override=False)
+dotfile = f".env.{ENV}"
+load_dotenv(dotfile, override=False)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from app.services.db import SessionLocal, Base
@@ -35,17 +28,8 @@ from app.services.db import SessionLocal, Base
 def create_app():
     app = Flask(__name__)
 
-    # honor X-Forwarded-* from Cloudflare/Railway
-    # app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
-
-    # HTTPS-aware defaults in prod
     if ENV == "production":
         app.config.from_object(ProductionConfig)
-        # app.config.update(
-        #     PREFERRED_URL_SCHEME="https",
-        #     SESSION_COOKIE_SECURE=True,
-        #     REMEMBER_COOKIE_SECURE=True,
-        # )
     elif ENV == "test":
         app.config.from_object(TestingConfig)
     else:
