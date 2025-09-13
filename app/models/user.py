@@ -21,7 +21,7 @@ def create_user(db, clerk_id, **kwargs):
     return user
 
 def get_user_by_email(db, email: str):
-    return db.query(User).filter(User.email == email).first()
+    return db.query(User).filter(User.email == email).order_by(User.created_at.asc()).first()
 
 def get_user_by_clerk_id(db, clerk_id):
     return db.query(User).filter(User.clerk_id == clerk_id).first()
