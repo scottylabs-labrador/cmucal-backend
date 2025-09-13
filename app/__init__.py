@@ -36,18 +36,16 @@ def create_app():
     app = Flask(__name__)
 
     # honor X-Forwarded-* from Cloudflare/Railway
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+    # app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     # HTTPS-aware defaults in prod
     if ENV == "production":
         app.config.from_object(ProductionConfig)
-        app.config.update(
-            PREFERRED_URL_SCHEME="https",
-            SESSION_COOKIE_SECURE=True,
-            REMEMBER_COOKIE_SECURE=True,
-            # optional if you generate external URLs without _external/_scheme:
-            # SERVER_NAME="api.cal.scottylabs.org",
-        )
+        # app.config.update(
+        #     PREFERRED_URL_SCHEME="https",
+        #     SESSION_COOKIE_SECURE=True,
+        #     REMEMBER_COOKIE_SECURE=True,
+        # )
     elif ENV == "test":
         app.config.from_object(TestingConfig)
     else:
