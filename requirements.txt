@@ -1,3 +1,4 @@
+alembic==1.16.5
 bcrypt==4.3.0
 blinker==1.9.0
 cachetools==5.5.2
@@ -24,6 +25,7 @@ importlib_metadata==8.6.1
 inflect==7.5.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
+Mako==1.3.10
 MarkupSafe==3.0.2
 more-itertools==10.7.0
 oauthlib==3.2.2
@@ -41,6 +43,7 @@ recurring-ical-events==3.8.0
 requests==2.32.3
 requests-oauthlib==2.0.0
 rsa==4.9
+setuptools==80.9.0
 six==1.17.0
 sqlacodegen==3.0.0
 SQLAlchemy==2.0.41
@@ -51,5 +54,6 @@ tzlocal==5.3.1
 uritemplate==4.1.1
 urllib3==2.3.0
 Werkzeug==3.1.3
+wheel==0.45.1
 x-wr-timezone==2.0.1
 zipp==3.21.0

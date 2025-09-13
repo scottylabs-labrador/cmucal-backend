@@ -55,7 +55,7 @@ def handle_login():
             if user:
                 # If the stored clerk_id is missing or differs, update it to the one we just got
                 if user.clerk_id != clerk_id:
-                    # Optional: if another row is already using this clerk_id, clear it first to avoid unique conflicts
+                    # if another row is already using this clerk_id, clear it first to avoid unique conflicts
                     other = get_user_by_clerk_id(db, clerk_id)
                     if other and other.id != user.id:
                         other.clerk_id = None  # or handle a merge if you keep data on 'other'

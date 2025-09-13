@@ -30,12 +30,27 @@ Open a terminal (in the backend folder with virtual environment), run `python ru
 - add `from app.services.db import Base` to the top of `models.py`
 - change all capitalized class names from plural to singular. i.e. class Events --> class Event. Don't change the lowercase names in quotes.
 
-## 4. Course data
+## 4. Database Migrations
+(ignore this unless told otherwise) 
+
+Note: add `APP_ENV=development` or `APP_ENV=production` before you run any alembic operations. 
+
+Example commands:
+```
+APP_ENV=development alembic revision --autogenerate -m "<insert your message>"
+APP_ENV=development alembic upgrade head
+APP_ENV=production alembic upgrade head
+```
+
+- `upgrade head` = run migrations + bump version.
+- `stamp head` = bump version only, no migrations executed.
+
+
+
+## 5. Course data
 (ignore this unless told otherwise) IF need to scrape data from cmu schedule of classes
 - `git checkout rust` 
 - Follow the instructions in the `rust` directory's README file. 
 - Then `git checkout main` 
 - Run `flask import-courses`
 
-## Dev To-do
-- remove `os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"` after flask app has been deployed. This is only for developmet environment.
