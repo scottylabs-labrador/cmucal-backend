@@ -49,8 +49,19 @@ APP_ENV=production alembic upgrade head
 
 ## 5. Course data
 (ignore this unless told otherwise) IF need to scrape data from cmu schedule of classes
-- `git checkout rust` 
-- Follow the instructions in the `rust` directory's README file. 
-- Then `git checkout main` 
-- Run `flask import-courses`
+1. `git checkout rust` 
+2. Follow the instructions in the `rust` directory's README file. 
+3. Then `git checkout main` 
+4. Run `flask import-courses`
+
+## 6. Scraped Info
+(ignore this unless told otherwise) IF need to scrape data from handshake, tartanconnect, si, peer tutoring
+1. `git pull` the scraper branch, and switch to this branch
+2. `cd scraper`
+3. Run these commands:
+    - `python exporters/handshake_export_to_excel.py`
+    - `python exporters/tartanconnect_export_to_excel.py`
+    - `python exporters/si_export_to_excel.py`
+    - `python exporters/peer_tutoring_export_to_excel.py`
+4. Then you can see an excel sheet exported to the base folder
 
