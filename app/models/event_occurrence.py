@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 from copy import deepcopy
 from app.utils.date import _ensure_aware, _parse_iso_aware
-
+import enum
 
 ### need to check type of event_saved_at, start_datetime, end_datetime before using them
 def save_event_occurrence(db, event_id: int, org_id: int, category_id: int, title: str, 
@@ -258,3 +258,12 @@ def update_event_occurrence(db, event_id: int, org_id: int, category_id: int, ti
         db.flush()
         db.refresh(event_occurrence)
         return event_occurrence
+
+def as_dict(self):
+    result = {}
+    for c in self.__table__.columns:
+        value = getattr(self, c.name)
+        if isinstance(value, enum.Enum):   # catches RecurrenceType
+            value = value.value            # or value.name if you prefer
+        result[c.name] = value
+    return result
