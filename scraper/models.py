@@ -106,3 +106,39 @@ class OtherResource:
             f"{self.resource_type} - {self.resource_source}: {self.event_name} | {self.event_host}\n"
             f"Categories: {categories_str}\n{events_str}{metadata_str}"
         )
+class ScheduleOfClasses:
+    def __init__(
+        self, 
+        id: int, 
+        course_id: str, 
+        course_name: str, 
+        lecture_days: str, 
+        lecture_time: str, 
+        recitation_days: Optional[str], 
+        recitation_time: Optional[str], 
+        location: str
+    ):
+        self.course_id = course_id  
+        self.course_name = course_name  
+        self.lecture_days = lecture_days  
+        self.lecture_time = lecture_time  
+        self.recitation_days = recitation_days  
+        self.recitation_time = recitation_time  
+        self.location = location 
+    
+    def to_json(self):
+        json = {
+            "course_id": self.course_id,
+            "course_name": self.course_name,
+            "lecture_days": self.lecture_days,
+            "lecture_time": self.lecture_time,
+            "recitation_days": self.recitation_days,
+            "recitation_time": self.recitation_time,
+            "location": self.location
+        }
+        return json
+    
+    def __str__(self):
+        return f"{self.course_id} | {self.course_name} | Lecture: {self.lecture_days} {self.lecture_time} | Recitation: {self.recitation_days} {self.recitation_time} | Location: {self.location}"  
+    
+        
