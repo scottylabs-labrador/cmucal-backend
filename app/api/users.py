@@ -7,7 +7,7 @@ from app.services.google_service import create_cmucal_calendar
 from app.services.db import SessionLocal
 from app.models.organization import create_organization
 from app.models.admin import create_admin, get_categories_for_admin_user
-from app.models.schedule import create_schedule
+from app.models.schedule import create_schedule, delete_schedule
 from app.models.schedule_category import create_schedule_category
 from app.models.schedule_org import create_schedule_org, remove_schedule_org
 from app.models.category import join_org_and_to_dict
@@ -122,6 +122,36 @@ def create_schedule_record():
             import traceback
             print("❌ Exception:", traceback.format_exc())
             return jsonify({"error": str(e)}), 500
+        
+@users_bp.route("/delete_schedule", methods=["DELETE"])
+def delete_schedule_record():
+    """
+    Delete a schedule by its ID.
+    Note: This does not check for user ownership of the schedule.
+    """
+    with SessionLocal() as db:
+        try:
+            data = request.get_json()
+            schedule_id = data.get("schedule_id")
+            clerk_id = request.headers.get('Clerk-User-Id')
+            user = get_user_by_clerk_id(db, clerk_id)
+
+            if not user:
+                return jsonify({"error": "Missing user_id"}), 400
+            if not schedule_id:
+                return jsonify({"error": "Missing schedule_id"}), 400
+
+            success = delete_schedule(db, schedule_id=schedule_id)
+            if not success:
+                return jsonify({"error": "Schedule not found"}), 404
+
+            return jsonify({"status": "schedule deleted", "schedule_id": schedule_id}), 200
+        except Exception as e:
+            db.rollback()
+            import traceback
+            print("❌ Exception:", traceback.format_exc())
+            return jsonify({"error": str(e)}), 500
+
 
 @users_bp.route("/create_schedule_category", methods=["POST"])
 def create_schedule_category_record():

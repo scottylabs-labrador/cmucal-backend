@@ -3,12 +3,10 @@ from app.models.models import Schedule
 def create_schedule(db, user_id: int, name: str):
     """
     Create a new schedule in the database.
-    
     Args:
         db: Database session.
         user_id: ID of the user.
-        name: Name of the schedule.
-        
+        name: Name of the schedule.  
     Returns:
         The created Schedule object.
     """
@@ -17,3 +15,20 @@ def create_schedule(db, user_id: int, name: str):
     db.commit()
     db.refresh(schedule)
     return schedule
+
+def delete_schedule(db, schedule_id: int):
+    """
+    Delete a schedule from the database by its ID.
+    Args:
+        db: Database session.
+        schedule_id: ID of the schedule to delete.
+    Returns:
+        True if deleted successfully, False if not found.
+    """
+    schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
+    if not schedule:
+        return False
+
+    db.delete(schedule)
+    db.commit()
+    return True
