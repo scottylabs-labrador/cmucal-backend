@@ -106,39 +106,40 @@ class OtherResource:
             f"{self.resource_type} - {self.resource_source}: {self.event_name} | {self.event_host}\n"
             f"Categories: {categories_str}\n{events_str}{metadata_str}"
         )
+
 class ScheduleOfClasses:
     def __init__(
         self, 
         id: int, 
         course_id: str, 
         course_name: str, 
+        event_type: str,
         lecture_days: str, 
-        lecture_time: str, 
-        recitation_days: Optional[str], 
-        recitation_time: Optional[str], 
+        lecture_time_start: str, 
+        lecture_time_end: str,
         location: str
     ):
         self.course_id = course_id  
         self.course_name = course_name  
+        self.event_type = event_type
         self.lecture_days = lecture_days  
-        self.lecture_time = lecture_time  
-        self.recitation_days = recitation_days  
-        self.recitation_time = recitation_time  
+        self.lecture_time_start = lecture_time_start
+        self.lecture_time_end = lecture_time_end
         self.location = location 
     
     def to_json(self):
         json = {
             "course_id": self.course_id,
             "course_name": self.course_name,
+            "event_type": self.event_type,
             "lecture_days": self.lecture_days,
-            "lecture_time": self.lecture_time,
-            "recitation_days": self.recitation_days,
-            "recitation_time": self.recitation_time,
+            "lecture_time_start": self.lecture_time_start,
+            "lecture_time_end": self.lecture_time_end,
             "location": self.location
         }
         return json
     
     def __str__(self):
-        return f"{self.course_id} | {self.course_name} | Lecture: {self.lecture_days} {self.lecture_time} | Recitation: {self.recitation_days} {self.recitation_time} | Location: {self.location}"  
+        return f"{self.course_id} | {self.course_name} | Type: {self.event_type} | Lecture: {self.lecture_days} {self.lecture_time_start} {self.lecture_time_end} | Location: {self.location}"  
     
         

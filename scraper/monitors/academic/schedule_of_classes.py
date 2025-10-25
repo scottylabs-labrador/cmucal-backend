@@ -50,10 +50,10 @@ class ScheduleOfClassesScraper(BaseScraper):
                     id=None,
                     course_id=course_id,
                     course_name=course_name,
+                    event_type=section_schedule,
                     lecture_days=days,
-                    lecture_time=f"{time_start} - {time_end}",
-                    recitation_days=None,
-                    recitation_time=None,
+                    lecture_time_start=time_start,
+                    lecture_time_end=time_end,
                     location=location
                 )
                 resources.append(resource)
