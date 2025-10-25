@@ -52,8 +52,8 @@ If successful, you'll see events being scraped and exported to an Excel file.
 To upload scraped handshake data to the Supabase database:
 
 ```bash
-cd /path/to/cmucal-backend
-python scraper/process_handshake_to_supabase.py
+cd scraper
+python process_handshake_to_supabase.py
 ```
 
 This script will:

@@ -13,7 +13,12 @@ from datetime import datetime
 from pathlib import Path
 
 # Add the parent directory to Python path to import app modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(project_root)
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv(os.path.join(project_root, ".env.development"))
 
 from app.services.db import SessionLocal, engine
 from app.models.models import Organization
