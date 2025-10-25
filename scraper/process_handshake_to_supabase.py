@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(project_root, ".env.development"))
 
 from app.services.db import SessionLocal, engine
-from app.models.models import Organization
+from app.models.models import Organization, Category
 from sqlalchemy.exc import IntegrityError
 
 def get_handshake_excel_files():
@@ -93,7 +93,7 @@ def add_hosts_to_organizations_table(unique_hosts):
     skipped_orgs = []
     
     try:
-        print(f"\nAdding {len(unique_hosts)} hosts to organizations table...")
+        print(f"\nStep 1: Adding {len(unique_hosts)} hosts to organizations table...")
         
         for host in unique_hosts:
             try:
@@ -132,10 +132,10 @@ def add_hosts_to_organizations_table(unique_hosts):
                 print(f"  ✗ Failed to add '{host}': {e}")
                 continue
         
-        # Commit all changes
+        # Commit all organization changes
         db.commit()
         
-        print(f"\nSummary:")
+        print(f"\nStep 1 Summary:")
         print(f"  - Added: {len(added_orgs)} new organizations")
         print(f"  - Skipped: {len(skipped_orgs)} existing organizations")
         
@@ -144,6 +144,83 @@ def add_hosts_to_organizations_table(unique_hosts):
     except Exception as e:
         db.rollback()
         print(f"Error adding organizations to database: {e}")
+        return []
+    
+    finally:
+        db.close()
+
+def create_main_categories_for_orgs(organizations):
+    """Create 'Main' category for each newly added organization."""
+    
+    if not organizations:
+        print("No organizations to create categories for.")
+        return []
+    
+    db = SessionLocal()
+    added_categories = []
+    skipped_categories = []
+    
+    try:
+        print(f"\nStep 2: Creating 'Main' categories for organizations...")
+        
+        for org in organizations:
+            try:
+                org_id = org['id']
+                org_name = org['name']
+                
+                # Check if 'Main' category already exists for this org
+                existing_category = db.query(Category).filter(
+                    Category.org_id == org_id,
+                    Category.name == "Main"
+                ).first()
+                
+                if existing_category:
+                    print(f"  ✓ 'Main' category already exists for '{org_name}' (ID: {existing_category.id})")
+                    skipped_categories.append({
+                        'name': "Main",
+                        'id': existing_category.id,
+                        'org_id': org_id,
+                        'org_name': org_name,
+                        'created_at': existing_category.created_at
+                    })
+                    continue
+                
+                # Create new 'Main' category
+                new_category = Category(
+                    name="Main",
+                    org_id=org_id
+                )
+                
+                db.add(new_category)
+                db.flush()  # Get the ID without committing
+                
+                added_categories.append({
+                    'name': "Main",
+                    'id': new_category.id,
+                    'org_id': org_id,
+                    'org_name': org_name,
+                    'created_at': new_category.created_at
+                })
+                
+                print(f"  ✓ Added 'Main' category for '{org_name}' (Category ID: {new_category.id})")
+                
+            except IntegrityError as e:
+                db.rollback()
+                print(f"  ✗ Failed to add 'Main' category for '{org_name}': {e}")
+                continue
+        
+        # Commit all category changes
+        db.commit()
+        
+        print(f"\nStep 2 Summary:")
+        print(f"  - Added: {len(added_categories)} new 'Main' categories")
+        print(f"  - Skipped: {len(skipped_categories)} existing 'Main' categories")
+        
+        return added_categories + skipped_categories
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error adding categories to database: {e}")
         return []
     
     finally:
@@ -172,11 +249,12 @@ def run_fresh_scrape():
         return False
 
 def main():
-    """Main function to process handshake data - Step 1."""
+    """Main function to process handshake data - Steps 1 & 2."""
     
     print("=" * 60)
-    print("HANDSHAKE TO SUPABASE PROCESSOR - STEP 1")
-    print("Extracting event hosts and adding to organizations table")
+    print("HANDSHAKE TO SUPABASE PROCESSOR - STEPS 1 & 2")
+    print("1. Extracting event hosts and adding to organizations table")
+    print("2. Creating 'Main' categories for each organization")
     print("=" * 60)
     
     # Check database connection
@@ -209,24 +287,39 @@ def main():
         print("No event hosts found in Excel files.")
         return
     
-    # Step 3: Add to database
+    # Step 3: Add organizations to database
     organizations = add_hosts_to_organizations_table(unique_hosts)
     
-    if organizations:
-        print(f"\n✓ Step 1 completed successfully!")
-        print(f"  {len(organizations)} organizations are now available in the database.")
+    if not organizations:
+        print("\n✗ Step 1 failed - no organizations were processed.")
+        return
+    
+    # Step 4: Create 'Main' categories for organizations
+    categories = create_main_categories_for_orgs(organizations)
+    
+    if organizations and categories:
+        print(f"\n✅ Steps 1 & 2 completed successfully!")
+        print(f"  📊 {len(organizations)} organizations are now available in the database.")
+        print(f"  📁 {len(categories)} 'Main' categories created for organizations.")
         
         # Save results to file for reference
-        results_file = f"handshake_organizations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        results_file = f"handshake_organizations_categories_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         with open(results_file, 'w') as f:
-            f.write("Handshake Event Host Organizations\n")
-            f.write("=" * 40 + "\n\n")
+            f.write("Handshake Event Host Organizations & Categories\n")
+            f.write("=" * 50 + "\n\n")
+            f.write("ORGANIZATIONS:\n")
+            f.write("-" * 20 + "\n")
             for org in organizations:
                 f.write(f"ID: {org['id']}, Name: {org['name']}, Created: {org['created_at']}\n")
+            
+            f.write("\nCATEGORIES:\n")
+            f.write("-" * 20 + "\n")
+            for cat in categories:
+                f.write(f"ID: {cat['id']}, Name: {cat['name']}, Org: {cat['org_name']} (ID: {cat['org_id']}), Created: {cat['created_at']}\n")
         
-        print(f"  Results saved to: {results_file}")
+        print(f"  📄 Results saved to: {results_file}")
     else:
-        print("\n✗ Step 1 failed - no organizations were processed.")
+        print("\n✗ Steps 1 & 2 failed - organizations or categories were not processed properly.")
 
 if __name__ == "__main__":
     main()

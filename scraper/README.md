@@ -59,7 +59,8 @@ python process_handshake_to_supabase.py
 This script will:
 1. Run fresh handshake scraping
 2. Extract unique event hosts and add to `organizations` table
-3. Process event data for database upload
+3. Create "Main" category for each organization in `categories` table
+4. Process event data for database upload
 
 **Requirements**: Ensure `SUPABASE_DB_URL` is set in your `.env.development` file.
 
