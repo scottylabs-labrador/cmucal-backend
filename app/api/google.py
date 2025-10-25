@@ -10,7 +10,8 @@ from app.services.google_service import (
     fetch_events_for_calendars,
     add_event,
     delete_event,
-    credentials_to_dict
+    credentials_to_dict,
+    revoke_user_google_credentials
 )
 from app.models.google_event import save_google_event, get_google_event_by_local_id, delete_google_event_by_local_id
 from app.models.user import get_user_by_clerk_id
@@ -31,6 +32,15 @@ def authorize():
     session["state"] = state
     session["post_auth_redirect"] = redirect_url
     return redirect(authorization_url)
+
+@google_bp.route("/unauthorize", methods=["DELETE", "OPTIONS"])
+def unauthorize_google():
+    # your logic to revoke credentials, e.g.:
+    try:
+        revoke_user_google_credentials()
+        return jsonify({"message": "Google account unauthorized"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 @google_bp.route("/oauth/callback")
 def oauth2callback():

@@ -4,6 +4,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from flask import session
 from datetime import datetime, timedelta, timezone
+import requests
 
 
 SCOPES = [
@@ -133,5 +134,22 @@ def synced_event_to_dict(event):
         "end": event.end,
         "synced_at": event.synced_at.isoformat() if event.synced_at else None
     }
+
+def revoke_user_google_credentials():
+    creds = session.get("credentials")
+    if not creds:
+        return
+    token = creds.get("token")
+    if token:
+        # Revoke the token via Google's API
+        requests.post(
+            'https://oauth2.googleapis.com/revoke',
+            params={'token': token},
+            headers={'content-type': 'application/x-www-form-urlencoded'}
+        )
+
+    # Clear credentials from session
+    session.pop("credentials", None)
+
 
 
