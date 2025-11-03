@@ -9,6 +9,7 @@ from monitors.academic import SIScraper
 from monitors.academic import DropInScraper
 from monitors.academic import OfficeHoursScraper
 from monitors.academic import PeerTutoringScraper
+from monitors.academic import ScheduleOfClassesScraper
 
 from monitors.career_club import HandshakeScraper
 from monitors.career_club import TartanConnectScraper
@@ -53,6 +54,7 @@ class ScraperBot:
             SIScraper(self.db),
             DropInScraper(self.db),
             OfficeHoursScraper(self.db),
+            ScheduleOfClassesScraper(self.db),
             #PeerTutoringScraper(self.db)
         ]
 
