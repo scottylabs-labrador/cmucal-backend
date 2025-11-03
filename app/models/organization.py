@@ -36,6 +36,17 @@ def get_organization_by_id(db, org_id: int):
     """
     return db.query(Organization).filter(Organization.id == org_id).first()
 
+def get_organization_by_name(db, name: str):
+    """
+    Retrieve an organization by its name.
+    Args:
+        db: Database session.
+        name: Name of the organization.
+    Returns:
+        The Organization object if found, otherwise None.
+    """
+    return db.query(Organization).filter(Organization.name == name).first()
+
 def delete_organization(db, org_id: int):
     """
     Delete an organization by its ID.
