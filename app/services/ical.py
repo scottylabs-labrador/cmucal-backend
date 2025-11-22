@@ -165,6 +165,12 @@ def _process_uid_group_with_helpers(
         return
 
     base = _pick_base_component(base_candidates)
+    dtstart = decoded_dt_with_tz(base, "DTSTART")
+    min_dt = now - timedelta(days=365)
+    if dtstart < min_dt:
+        # skip events older than 1 year
+        return None
+
 
     # Base fields
     dtstart = decoded_dt_with_tz(base, "DTSTART")  # aware datetime or date
@@ -305,20 +311,58 @@ def _process_uid_group_with_helpers(
         db_session.query(RecurrenceExdate).filter_by(rrule_id=rule.id).delete(synchronize_session=False)
         db_session.query(RecurrenceRdate).filter_by(rrule_id=rule.id).delete(synchronize_session=False)
 
-        for ex in base.get("EXDATE", []):
-            for exdate in ex.dts:
+        # ---- Safe EXDATE normalization ----
+        raw_exdates = base.get("EXDATE")
+
+        exdate_entries = []
+        if raw_exdates:
+            from icalendar.prop import vDDDLists
+
+            # Case A: single vDDDLists → wrap into list
+            if isinstance(raw_exdates, vDDDLists):
+                exdate_entries = [raw_exdates]
+            else:
+                # Case B: already a list, but items may or may not be vDDDLists
+                # Filter or wrap appropriately
+                for item in raw_exdates:
+                    if isinstance(item, vDDDLists):
+                        exdate_entries.append(item)
+                    else:
+                        # A single EXDATE entry written as literal ical datetime
+                        # Wrap into vDDDLists-like object
+                        exdate_entries.append(item)
+
+        # Iterate safely
+        for ex in exdate_entries:
+            for ex_date in ex.dts:
                 db_session.add(RecurrenceExdate(
                     rrule_id=rule.id,
-                    exdate=_ensure_aware(exdate.dt)
+                    exdate=_ensure_aware(ex_date.dt)
                 ))
 
-        for r in base.get("RDATE", []):
-            for rdate in r.dts:
+        # ---- Safe RDATE normalization ----
+        raw_rdates = base.get("RDATE")
+
+        rdate_entries = []
+        if raw_rdates:
+            from icalendar.prop import vDDDLists
+
+            if isinstance(raw_rdates, vDDDLists):
+                rdate_entries = [raw_rdates]
+            else:
+                for item in raw_rdates:
+                    if isinstance(item, vDDDLists):
+                        rdate_entries.append(item)
+                    else:
+                        rdate_entries.append(item)
+
+        for entry in rdate_entries:
+            for rd in entry.dts:
                 db_session.add(RecurrenceRdate(
                     rrule_id=rule.id,
-                    rdate=_ensure_aware(rdate.dt)
+                    rdate=_ensure_aware(rd.dt)
                 ))
-        db_session.flush()
+                db_session.flush()
 
         # Store overrides for this UID (RECURRENCE-ID)
         db_session.query(EventOverride).filter_by(rrule_id=rule.id).delete(synchronize_session=False)
