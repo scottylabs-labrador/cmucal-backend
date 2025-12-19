@@ -183,9 +183,7 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
 
     recurrence_overrides = db.query(RecurrenceOverride).filter_by(rrule_id=rule.id).all()
 
-    # Build a mapping of dates -> RecurrenceOverride for pattern-based overrides
-    # Each RecurrenceOverride defines a pattern (e.g., "all Tuesdays") and we expand it
-    # to find which dates it applies to
+    # Construct a dictionary of dates: RecurrenceOverride
     recurrence_override_dates = {}
     for ro in recurrence_overrides:
         try:
