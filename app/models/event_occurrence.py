@@ -11,7 +11,7 @@ from copy import deepcopy
 from app.utils.date import _ensure_aware, _parse_iso_aware
 
 
-def apply_recurrence_overrides(
+def apply_overrides(
     occ_start: datetime,
     event: Event,
     duration: timedelta,
@@ -211,7 +211,7 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
         if occ_start in exdates:
             continue
 
-        start_dt, end_dt, title, desc, loc = apply_recurrence_overrides(
+        start_dt, end_dt, title, desc, loc = apply_overrides(
             occ_start, event, duration, overrides, recurrence_override_dates
         )
 
@@ -239,7 +239,7 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
         if rdate in exdates or rdate in seen_starts:
             continue
 
-        start_dt, end_dt, title, desc, loc = apply_recurrence_overrides(
+        start_dt, end_dt, title, desc, loc = apply_overrides(
             rdate, event, duration, overrides, recurrence_override_dates
         )
 
