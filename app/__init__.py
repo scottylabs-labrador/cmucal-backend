@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables from .env file BEFORE other imports
 def detect_env() -> str:
@@ -34,6 +35,7 @@ def create_app():
         app.config.from_object(TestingConfig)
     else:
         app.config.from_object(DevelopmentConfig)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) # tell Flask to trust Railway’s proxy headers
 
     if not os.getenv("ALEMBIC_RUNNING"): # skip during Alembic
         from flask_cors import CORS
