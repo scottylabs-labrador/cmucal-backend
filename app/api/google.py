@@ -23,6 +23,7 @@ google_bp = Blueprint("google", __name__)
 def authorize():
     session.pop("credentials", None)
     redirect_url = request.args.get("redirect", "http://localhost:3000")
+    print("---authorize redirect URL:", redirect_url)
     flow = create_google_flow(current_app.config)
     authorization_url, state = flow.authorization_url(
         access_type="offline",
@@ -46,8 +47,10 @@ def unauthorize_google():
 def oauth2callback():
     state = session["state"]
     flow = create_google_flow(current_app.config, state)
+    print("---oauth2callback redirect URL:", request.url)
     flow.fetch_token(authorization_response=request.url)
     session["credentials"] = credentials_to_dict(flow.credentials)
+    print("---oauth2callback frontend_redirect:", current_app.config["FRONTEND_REDIRECT_URI"])
     return redirect(session.pop("post_auth_redirect", current_app.config["FRONTEND_REDIRECT_URI"]))
 
 @google_bp.route("/calendar/status")
