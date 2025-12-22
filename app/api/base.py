@@ -20,7 +20,7 @@ def home():
 def db_health_check():
     with SessionLocal() as db:
         try:
-            user = User(clerk_id="123456")
+            user = User(clerk_id="123456", email="test@example.com")
             db.add(user)
             db.commit()
             db.refresh(user)
