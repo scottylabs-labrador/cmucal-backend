@@ -5,6 +5,8 @@ from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz
 from datetime import datetime, timedelta, timezone, date
 from typing import Dict, List, Optional
 import requests
+from requests.exceptions import HTTPError, Timeout, ConnectionError
+from app.errors.ical import ICalFetchError
 import os
 
 from app.models.models import (
@@ -37,7 +39,14 @@ def import_ical_feed_using_helpers(
     # 1) Load ICS (support webcal:// or https:// or raw text)
     ical_text = _fetch_ics_text(ical_text_or_url)
 
-    cal = Calendar.from_ical(ical_text)
+    try:
+        cal = Calendar.from_ical(ical_text)
+    except Exception:
+        return {
+            "success": False,
+            "error": "ICAL_PARSE_ERROR",
+            "message": "The calendar data could not be parsed as a valid iCal file.",
+        }
 
     event_ids = []
 
@@ -80,7 +89,10 @@ def import_ical_feed_using_helpers(
         if missing:
             db_session.query(Event).filter(Event.ical_uid.in_(missing)).delete(synchronize_session=False)
 
-    return f"Processed {len(incoming_uids)} unique UIDs from ICS feed:\n{event_ids}"
+    return {
+        "success": True,
+        "event_ids": event_ids,
+    }
 
 
 ## this function (sync_ical_source) has not been tested yet, do not run in production environment
@@ -435,13 +447,53 @@ def _has_occurrence(db_session, event_id: int, start_dt, end_dt) -> bool:
 
 def _fetch_ics_text(ical_text_or_url: str) -> str:
     s = ical_text_or_url.strip()
+    # Raw ICS text
+    if s.startswith("BEGIN:VCALENDAR"):
+        return s
     if s.startswith(("http://", "https://", "webcal://")):
         if s.startswith("webcal://"):
             s = "https://" + s[len("webcal://"):]
-        r = requests.get(s, timeout=30)
-        r.raise_for_status()
-        return r.text
-    return s  # already raw ICS text
+        try:
+            r = requests.get(s, timeout=30)
+            r.raise_for_status()
+            content_type = (r.headers.get("Content-Type") or "").lower()
+            if "text/html" in content_type:
+                raise ICalFetchError(
+                    "ICAL_NOT_ICS",
+                    "The provided URL does not point to a valid iCal feed.",
+                )
+            return r.text
+        except HTTPError as e:
+            status = e.response.status_code if e.response else None
+            url_lower = s.lower()
+            if status in (401, 403):
+                raise ICalFetchError(
+                    "ICAL_PERMISSION_DENIED",
+                    "Access to this calendar is denied. "
+                    "It may be private or require authentication.",
+                )
+            if status == 404:
+                raise ICalFetchError(
+                    "ICAL_NOT_FOUND",
+                    "The iCal URL was not found. Please check the link.",
+                )
+            raise ICalFetchError(
+                "ICAL_HTTP_ERROR",
+                "Failed to fetch the iCal feed. Please verify the calendar has public access.",
+            )
+        except Timeout:
+            raise ICalFetchError(
+                "ICAL_TIMEOUT",
+                "The iCal feed took too long to respond.",
+            )
+        except ConnectionError:
+            raise ICalFetchError(
+                "ICAL_CONNECTION_ERROR",
+                "Unable to connect to the iCal feed.",
+            )
+    # Fallback: treat as raw text
+    return s
+
 
 def _should_update(existing_evt: Event, seq: int, last_modified: datetime) -> bool:
         if existing_evt is None:

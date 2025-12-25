@@ -17,6 +17,7 @@ from datetime import datetime
 from sqlalchemy import cast, Date, or_
 
 from app.services.ical import import_ical_feed_using_helpers
+from app.errors.ical import ICalFetchError
 from app.models.calendar_source import create_calendar_source
 from app.models.category_ical import create_category_ical
 
@@ -185,6 +186,10 @@ def read_gcal_link():
                 user_id=user.id
             )
             print(ics_message)
+            # Handle parse-level failure
+            if ics_message.get("success") is False:
+                db.rollback()
+                return jsonify(ics_message), 400
 
             # store the gcal link if it is not already stored
             existing_calendar_source = db.query(CalendarSource).filter(CalendarSource.url == gcal_link).first()
@@ -209,14 +214,32 @@ def read_gcal_link():
                 existing_category_ical = category_ical
 
             db.commit()  # Only commit if all succeeded
-            return jsonify({"message": "gcal link processed...", "calendar_source_id": existing_calendar_source.id}), 201
+            return jsonify({
+                "success": True,
+                "message": "Google Calendar link processed successfully.",
+                "calendar_source_id": existing_calendar_source.id,
+            }), 201
+        
+        # import_ical_feed_using_helpers errors
+        except ICalFetchError as e:
+            db.rollback()
+            return jsonify({
+                "success": False,
+                "error": e.code,
+                "message": e.message,
+            }), 400
 
+        # Unexpcted errors
         except Exception as e:
             db.rollback()
             import traceback
             print("❌ Exception:", traceback.format_exc())
 
-            return jsonify({"error": str(e)}), 500
+            return jsonify({
+                "success": False,
+                "error": "INTERNAL_SERVER_ERROR",
+                "message": str(e),
+            }), 500
 
 # @events_bp.route("/generate_more_occurrences", methods=["POST"])
 # def generate_more_occurrences():
