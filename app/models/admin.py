@@ -1,3 +1,4 @@
+# app/models/admin.py
 from app.models.models import Admin, Category
 from typing import List
 from sqlalchemy.orm import aliased
@@ -44,6 +45,30 @@ def get_admin_by_org_and_user(db, org_id: int, user_id: int):
         Admin.org_id == org_id,
         Admin.user_id == user_id
     ).first()
+
+def get_role(db, user_id: int):
+    """
+    Retrieve the role of a user by user ID.
+    Args:
+        db: Database session.
+        user_id: ID of the user.
+    Returns:
+        is_manager (boolean), is_admin (boolean), and pairs of (role, org_id) if found.
+    """
+    admin_data = db.query(Admin).filter(
+        Admin.user_id == user_id
+    )
+    is_manager = False
+    is_admin = False
+    role_orgs = []
+    if admin_data.count() > 0:
+        for admin in admin_data:
+            if admin.role == "manager":
+                is_manager = True
+            if admin.role == "admin":
+                is_admin = True
+            role_orgs.append((admin.role, admin.org_id))
+    return is_manager, is_admin, role_orgs
 
 def delete_admin(db, org_id: int, user_id: int):
     """
