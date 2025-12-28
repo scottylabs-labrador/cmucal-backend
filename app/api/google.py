@@ -10,7 +10,8 @@ from app.services.google_service import (
     fetch_events_for_calendars,
     add_event,
     delete_event,
-    credentials_to_dict
+    credentials_to_dict,
+    revoke_user_google_credentials
 )
 from app.models.google_event import save_google_event, get_google_event_by_local_id, delete_google_event_by_local_id
 from app.models.user import get_user_by_clerk_id
@@ -22,6 +23,7 @@ google_bp = Blueprint("google", __name__)
 def authorize():
     session.pop("credentials", None)
     redirect_url = request.args.get("redirect", "http://localhost:3000")
+    print("---authorize redirect URL:", redirect_url)
     flow = create_google_flow(current_app.config)
     authorization_url, state = flow.authorization_url(
         access_type="offline",
@@ -32,12 +34,23 @@ def authorize():
     session["post_auth_redirect"] = redirect_url
     return redirect(authorization_url)
 
+@google_bp.route("/unauthorize", methods=["DELETE", "OPTIONS"])
+def unauthorize_google():
+    # your logic to revoke credentials, e.g.:
+    try:
+        revoke_user_google_credentials()
+        return jsonify({"message": "Google account unauthorized"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
 @google_bp.route("/oauth/callback")
 def oauth2callback():
     state = session["state"]
     flow = create_google_flow(current_app.config, state)
+    print("---oauth2callback redirect URL:", request.url)
     flow.fetch_token(authorization_response=request.url)
     session["credentials"] = credentials_to_dict(flow.credentials)
+    print("---oauth2callback frontend_redirect:", current_app.config["FRONTEND_REDIRECT_URI"])
     return redirect(session.pop("post_auth_redirect", current_app.config["FRONTEND_REDIRECT_URI"]))
 
 @google_bp.route("/calendar/status")

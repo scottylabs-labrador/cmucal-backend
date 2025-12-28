@@ -414,6 +414,7 @@ class RecurrenceRule(Base):
     event_overrides: Mapped[List['EventOverride']] = relationship('EventOverride', back_populates='rrule')
     recurrence_exdates: Mapped[List['RecurrenceExdate']] = relationship('RecurrenceExdate', back_populates='rrule')
     recurrence_rdates: Mapped[List['RecurrenceRdate']] = relationship('RecurrenceRdate', back_populates='rrule')
+    recurrence_overrides: Mapped[List['RecurrenceOverride']] = relationship('RecurrenceOverride', back_populates='rrule')
 
 class RecurrenceExdate(Base):
     __tablename__ = 'recurrence_exdates'
@@ -461,6 +462,50 @@ class EventOverride(Base):
     new_location: Mapped[Optional[str]] = mapped_column(Text)
 
     rrule: Mapped['RecurrenceRule'] = relationship('RecurrenceRule', back_populates='event_overrides')
+
+
+class RecurrenceOverride(Base):
+    """
+    Pattern-based override for recurring events. Works alongside EventOverride.
+    EventOverride targets specific dates, RecurrenceOverride targets patterns (e.g., "all Tuesdays").
+    
+    Priority: EventOverride (date-specific) > RecurrenceOverride (pattern-based) > Ex/RDate > Default event values
+    
+    Examples:
+    - Every Tuesday, meeting is in Room B instead of Room A: by_day=['TU'], new_location='Room B'
+    - All meetings in June start at 2pm: by_month=6, new_start with 2pm time
+    """
+    __tablename__ = 'recurrence_overrides'
+    __table_args__ = (
+        ForeignKeyConstraint(['rrule_id'], ['recurrence_rules.id'], ondelete='CASCADE', name='recurrence_overrides_rrule_id_fkey'),
+        PrimaryKeyConstraint('id', name='recurrence_overrides_pkey')
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'))
+    rrule_id: Mapped[int] = mapped_column(BigInteger)
+    
+    # Pattern matching fields - define which occurrences this override applies to
+    frequency: Mapped[str] = mapped_column(Enum(FrequencyType, name='frequency_type', create_type=False))
+    interval: Mapped[int] = mapped_column(BigInteger)
+
+    by_day: Mapped[Optional[list]] = mapped_column(ARRAY(Text()))  # e.g., ['TU', 'TH'] for Tuesdays and Thursdays
+    by_month: Mapped[Optional[int]] = mapped_column(SmallInteger)  # 1-12, e.g., 6 for June
+    by_month_day: Mapped[Optional[int]] = mapped_column(SmallInteger)  # 1-31, specific day of month
+    
+    # Override values - same structure as EventOverride
+    new_start: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True))
+    new_end: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True))
+    new_title: Mapped[Optional[str]] = mapped_column(Text)
+    new_description: Mapped[Optional[str]] = mapped_column(Text)
+    new_location: Mapped[Optional[str]] = mapped_column(Text)
+    
+    # TODO: Update priority system.
+    # Priority for conflict resolution when multiple patterns match (higher number = higher priority)
+    # priority: Mapped[int] = mapped_column(SmallInteger, server_default=text('0'))
+    
+    rrule: Mapped['RecurrenceRule'] = relationship('RecurrenceRule', back_populates='recurrence_overrides')
+
 
 class UserSavedEvent(Base):
     __tablename__ = 'user_saved_events'

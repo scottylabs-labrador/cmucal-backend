@@ -6,7 +6,7 @@ from app.models.user import update_user_calendar_id
 from app.services.google_service import create_cmucal_calendar
 from app.services.db import SessionLocal
 from app.models.organization import create_organization
-from app.models.admin import create_admin, get_categories_for_admin_user
+from app.models.admin import create_admin, get_categories_for_admin_user, get_role
 from app.models.schedule import create_schedule
 from app.models.schedule_category import create_schedule_category
 from app.models.schedule_org import create_schedule_org, remove_schedule_org
@@ -234,6 +234,31 @@ def get_admin_categories():
 
             return jsonify(results), 200
 
+        except Exception as e:
+            db.rollback()
+            import traceback
+            print("❌ Exception:", traceback.format_exc())
+            return jsonify({"error": str(e)}), 500
+
+@users_bp.route("/get_role", methods=["GET"])
+def get_user_role():
+    with SessionLocal() as db:
+        try:
+            clerk_id = request.headers.get('Clerk-User-Id')
+            if not clerk_id:
+                return jsonify({"error": "Missing clerk_id"}), 400
+            
+            user = get_user_by_clerk_id(db, clerk_id)
+            if user is None:
+                return jsonify({"error": "User not found"}), 404
+            
+            is_manager, is_admin, role_orgs = get_role(db, user.id)
+
+            return jsonify({
+                "is_manager": is_manager,
+                "is_admin": is_admin,
+                "roles": [{"role": role, "org_id": org_id} for role, org_id in role_orgs]
+            }), 200
         except Exception as e:
             db.rollback()
             import traceback
