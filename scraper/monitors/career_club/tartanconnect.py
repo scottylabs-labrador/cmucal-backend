@@ -1,7 +1,7 @@
 
 import requests
-from monitors.base_scraper import BaseScraper
-from models import OtherResource, ResourceEvent
+from scraper.monitors.base_scraper import BaseScraper
+from scraper.models import OtherResource, ResourceEvent
 import datetime
 
 class TartanConnectScraper(BaseScraper):

@@ -8,6 +8,7 @@ client_secret.json
 venv/
 **/__pycache__/
 *.pyc
+.DS_Store
 ```
 
 ## 1. Virtual Environment
@@ -18,8 +19,16 @@ venv/
     - macOS: `source venv/bin/activate`
     - windows: `venv\Scripts\activate`
 
-- Once activated, you can install dependencies by `pip install -r requirements.txt`, and save them by running `pip freeze > requirements.txt`
+- Once activated, you can install dependencies by
+    - dev environment: `pip install -e ".[dev]"`
+    - production environment: `pip install -e .`
+
+<!-- - Once activated, you can install dependencies by `pip install -r requirements.txt`, `pip install -e .`, and save them by running `pip freeze > requirements.txt` -->
 - If you encounter an error with psycogp2, run `brew install postgresql` first.
+
+- Note: if you install new dependencies, make sure to add it to `pyproject.toml`
+    - If runtime dependency -> [project.dependencies]
+    - If dev/test only -> [project.optional-dependencies].dev◊
 
 ## 2. Flask app
 Open a terminal (in the backend folder with virtual environment), run `python run.py` to start the Flask app.

@@ -5,9 +5,7 @@ import pandas as pd
 from datetime import datetime
 from pymongo import MongoClient
 
-# Add the parent directory to Python path so we can import from monitors
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from monitors.academic import SIScraper
+from scraper.monitors.academic import SIScraper
 
 try:
     # Read Mongo DB config from config.ini

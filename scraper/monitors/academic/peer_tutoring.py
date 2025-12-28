@@ -2,8 +2,8 @@
 
 import requests
 import bs4
-from monitors.base_scraper import BaseScraper
-from models import CourseResource, ResourceEvent
+from scraper.monitors.base_scraper import BaseScraper
+from scraper.models import CourseResource, ResourceEvent
 import time
 import re
 import datetime

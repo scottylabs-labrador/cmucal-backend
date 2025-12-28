@@ -3,8 +3,7 @@ import sys
 import pandas as pd
 from datetime import datetime
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from monitors.academic import ScheduleOfClassesScraper
+from scraper.monitors.academic import ScheduleOfClassesScraper
 
 
 
