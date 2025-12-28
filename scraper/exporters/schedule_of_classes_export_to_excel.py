@@ -34,7 +34,8 @@ def run_scrape_and_export():
             'Lecture Days': resource.lecture_days,
             'Lecture Time Start': resource.lecture_time_start,
             'Lecture Time End': resource.lecture_time_end,
-            'Location': resource.location
+            'Location': resource.location,
+            'Semester': resource.semester
         } for resource in resources])
 
         # --- File Export ---
