@@ -57,21 +57,23 @@ class ScheduleOfClassesScraper(BaseScraper):
         return resources
 
     def _fetch_courses(self):
-        semester, semester_label = self.getCurrentSemester()
+        html = self._fetch_html()
+        if not html:
+            return []
+        return self._parse_html(html)
+    
+    def _fetch_html(self):
+        semester, _ = self.getCurrentSemester()
         if not semester:
-            print("Error: Could not determine current semester. Stopping scrape.")
-            return []  # Return an empty list if no semester is found
-
+            print("Error: Could not determine current semester.")
+            return None
         print(f"Current semester identified as: {semester}")
 
-        url = "https://enr-apps.as.cmu.edu/assets/SOC/" + semester + ".htm"
+        url = f"https://enr-apps.as.cmu.edu/assets/SOC/{semester}.htm"
 
         try:
-            # Use the initialized session and headers
-            # The session will now use verify=False automatically
             response = self.session.get(url, headers=self.headers)
             response.raise_for_status()
-
             # Fix malformed HTML: Insert <TR> before orphaned <TD> tags
             # Pattern: After a row ending with </TR>, if the next tag is <TD>, insert <TR>
 
@@ -91,13 +93,19 @@ class ScheduleOfClassesScraper(BaseScraper):
             # with open("debug_response_fixed.html", "w", encoding="utf-8") as f:
             #     f.write(fixed_html)
             # print("Saved original and fixed HTML files")
+            return fixed_html
         except requests.exceptions.RequestException as e:
             print(f"Error fetching URL: {url}")
             print(f"Exception: {e}")
-            return []
-
-        soup = bs4.BeautifulSoup(fixed_html, "html.parser")
+            return None
+        
+    def _parse_html(self, html):
+        soup = bs4.BeautifulSoup(html, "html.parser")
         print("Successfully fetched and parsed the schedule of classes page.")
+        return self._parse_tables(soup)
+    
+    def _parse_tables(self, soup):
+        _, semester_label = self.getCurrentSemester()
 
         all_tables = soup.find_all("table", {"border": "0"})
 
@@ -109,11 +117,8 @@ class ScheduleOfClassesScraper(BaseScraper):
             if any(r.find("b", string="Course") for r in header_rows[:3]):
                 tables.append(t)
 
-        # --- END MODIFICATION ---
-
         if not tables:
             print("Scraper found no course tables on the page.")
-        # --- END DEBUGGING ---
 
         resources = []
         for table_idx, table in enumerate(tables):
