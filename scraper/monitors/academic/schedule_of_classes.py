@@ -2,7 +2,7 @@ import datetime
 import bs4
 import requests
 import urllib3  # <-- 1. Import urllib3 to suppress warnings
-from monitors.base_scraper import BaseScraper
+from scraper.monitors.base_scraper import BaseScraper
 import re
 
 
@@ -77,14 +77,8 @@ class ScheduleOfClassesScraper(BaseScraper):
             # Fix malformed HTML: Insert <TR> before orphaned <TD> tags
             # Pattern: After a row ending with </TR>, if the next tag is <TD>, insert <TR>
 
-            fixed_html = response.text
-
-            # Replace pattern: </TR>\n<TD with </TR>\n<TR><TD
-            # This adds the missing <TR> tag after section headers
-            fixed_html = re.sub(
-                r"(</TR>)\s*(<TD)", r"\1\n<TR>\2", fixed_html, flags=re.IGNORECASE
-            )
-
+            fixed_html = self._fix_malformed_html(response.text)
+            
             print("Fixed malformed HTML by inserting missing <TR> tags")
 
             # Debug: save both versions
@@ -98,6 +92,13 @@ class ScheduleOfClassesScraper(BaseScraper):
             print(f"Error fetching URL: {url}")
             print(f"Exception: {e}")
             return None
+    
+    def _fix_malformed_html(self, html):
+        # Replace pattern: </TR>\n<TD with </TR>\n<TR><TD
+        fixed_html = re.sub(
+            r"(</TR>)\s*(<TD)", r"\1\n<TR>\2", html, flags=re.IGNORECASE
+        )
+        return fixed_html
         
     def _parse_html(self, html):
         soup = bs4.BeautifulSoup(html, "html.parser")
