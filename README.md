@@ -25,7 +25,9 @@ venv/
 Open a terminal (in the backend folder with virtual environment), run `python run.py` to start the Flask app.
 
 ## 3. How to test
-Run `pytest` in the terminal.
+Run `pytest` in the terminal. 
+
+- Note: uses SQLite for test db
 
 ## 4. Supabase
 (ignore this unless told otherwise) IF need to get the table schema from Supabase: in the terminal, run `sqlacodegen [SUPABASE_DB_URL from env file] --outfile models.py`
