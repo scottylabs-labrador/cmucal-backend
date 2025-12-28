@@ -24,13 +24,18 @@ venv/
 ## 2. Flask app
 Open a terminal (in the backend folder with virtual environment), run `python run.py` to start the Flask app.
 
-## 3. Supabase
+## 3. How to test
+Run `pytest` in the terminal. 
+
+- Note: uses SQLite for test db
+
+## 4. Supabase
 (ignore this unless told otherwise) IF need to get the table schema from Supabase: in the terminal, run `sqlacodegen [SUPABASE_DB_URL from env file] --outfile models.py`
 - comment out the `class Base` section in `models.py`
 - add `from app.services.db import Base` to the top of `models.py`
 - change all capitalized class names from plural to singular. i.e. class Events --> class Event. Don't change the lowercase names in quotes.
 
-## 4. Database Migrations
+## 5. Database Migrations
 (ignore this unless told otherwise) 
 
 Note: add `APP_ENV=development` or `APP_ENV=production` before you run any alembic operations. 
@@ -45,16 +50,14 @@ APP_ENV=production alembic upgrade head
 - `upgrade head` = run migrations + bump version.
 - `stamp head` = bump version only, no migrations executed.
 
-
-
-## 5. Course data
+## 6. Course data
 (ignore this unless told otherwise) IF need to scrape data from cmu schedule of classes
 1. `git checkout rust` 
 2. Follow the instructions in the `rust` directory's README file. 
 3. Then `git checkout main` 
 4. Run `flask import-courses`
 
-## 6. Scraped Info
+## 7. Scraped Info
 (ignore this unless told otherwise) IF need to scrape data from handshake, tartanconnect, si, peer tutoring
 1. `git pull` the scraper branch, and switch to this branch
 2. `cd scraper`
