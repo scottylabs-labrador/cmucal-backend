@@ -11,10 +11,7 @@ _SessionLocal = None
 
 def get_database_url():
     env = os.getenv("APP_ENV", "development")
-
-    if env == "test":
-        return os.getenv("TEST_DATABASE_URL")
-
+    print(f"[DB] Current APP_ENV: {env}")
     return os.getenv("SUPABASE_DB_URL")
 
 
@@ -26,8 +23,15 @@ def init_db():
 
     db_url = get_database_url()
 
-    if os.getenv("PYTEST_CURRENT_TEST") and "test" not in db_url:
-        raise RuntimeError("❌ Pytest running on non-test database")
+    is_pytest = os.getenv("PYTEST_CURRENT_TEST") is not None
+    allow_test_db = os.getenv("ALLOW_TEST_DB") == "1"
+
+    if is_pytest and not allow_test_db:
+        raise RuntimeError(
+            "❌ Pytest detected but ALLOW_TEST_DB is not set. "
+            "Refusing to connect to database."
+        )
+
 
     _engine = create_engine(
         db_url,
