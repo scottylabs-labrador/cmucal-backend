@@ -23,8 +23,7 @@ dotfile = f".env.{ENV}"
 load_dotenv(dotfile, override=False)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
-from app.services.db import SessionLocal, Base
-
+from app.services.db import init_db
 
 def create_app():
     app = Flask(__name__)
@@ -52,6 +51,7 @@ def create_app():
             "http://localhost:3000,https://cmucal.vercel.app,http://cmucal.com,https://cal.scottylabs.org"
         ).split(",")]
         
+        init_db()
 
         CORS(app, resources={r"/api/*": {
             "origins": origins,

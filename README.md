@@ -53,6 +53,7 @@ Example commands:
 ```
 APP_ENV=development alembic revision --autogenerate -m "<insert your message>"
 APP_ENV=development alembic upgrade head
+APP_ENV=test alembic upgrade head
 APP_ENV=production alembic upgrade head
 ```
 
