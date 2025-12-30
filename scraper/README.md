@@ -5,6 +5,7 @@
 `python exporters/tartanconnect_export_to_excel.py`
 `python exporters/si_export_to_excel.py`
 `python exporters/peer_tutoring_export_to_excel.py`
+`python exporters/schedule_of_classes_export_to_excel.py`
 
 # Old README
 
