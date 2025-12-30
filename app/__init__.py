@@ -19,7 +19,7 @@ def detect_env() -> str:
     return "development"
 
 ENV = detect_env()
-print(f"[init] Detected APP_ENV={ENV}")
+# print(f"[init] Detected APP_ENV={ENV}")
 dotfile = f".env.{ENV}"
 load_dotenv(dotfile, override=False)
 
@@ -38,7 +38,7 @@ def create_app():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) # tell Flask to trust Railway’s proxy headers
 
     init_db()
-    
+
     @app.before_request
     def open_db():
         g.db = get_session()
@@ -50,7 +50,7 @@ def create_app():
             if exc:
                 db.rollback()
             db.close()
-            print(f"[DB] Session closed {id(db)}")
+            # print(f"[DB] Session closed {id(db)}")
 
     if not os.getenv("ALEMBIC_RUNNING"): # skip during Alembic
         from flask_cors import CORS

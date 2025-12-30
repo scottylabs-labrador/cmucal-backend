@@ -27,8 +27,6 @@ def create_admin(db, org_id: int, user_id: int, role: str = "admin", category_id
     """
     admin = Admin(org_id=org_id, user_id=user_id, role=role, category_id=category_id)
     db.add(admin)
-    db.commit()
-    db.refresh(admin)
     return admin
 
 def get_admin_by_org_and_user(db, org_id: int, user_id: int):
@@ -87,7 +85,6 @@ def delete_admin(db, org_id: int, user_id: int):
     
     if admin:
         db.delete(admin)
-        db.commit()
         return True
     return False
 

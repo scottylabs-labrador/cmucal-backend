@@ -18,8 +18,7 @@ def get_course_orgs():
     db = g.db
     try:
         orgs = get_orgs_by_type(db, org_type='COURSE')
-        if not orgs:
-            return jsonify({"error": "No course organizations found"}), 404
+        print(f"Found {len(orgs)} COURSE organizations")
         orgs_list = []
         for org in orgs:
             parts = org.name.split(" ")
@@ -98,7 +97,7 @@ def create_org_record():
             return jsonify({"error": "Missing org_name"}), 400
 
         org = create_organization(db, name=org_name, description=org_description, type=org_type)
-
+        db.commit()
         return jsonify({"status": "created", "org_id": org.id}), 201
     except Exception as e:
         import traceback
@@ -118,7 +117,7 @@ def create_category_record():
             return jsonify({"error": "Missing category name"}), 400
         
         category = create_category(db, org_id=org_id, name=name)
-        
+        db.commit()
         return jsonify({"status": "category created", "category_id": category.id}), 201
     except Exception as e:
         import traceback
@@ -153,7 +152,7 @@ def create_test_clubs():
                                         description=club_data["description"], 
                                         type="CLUB")
                 created_clubs.append(org.name)
-        
+                db.commit()
         return jsonify({
             "status": "success", 
             "created_clubs": created_clubs,
@@ -181,7 +180,7 @@ def create_admin_record():
         
         
         admin = create_admin(db, org_id=org_id, user_id=user_id, role=role, category_id=category_id)
-        
+        db.commit()
         return jsonify({"status": "admin created", "user": admin.user_id, "org": admin.org_id}), 200
     except Exception as e:
         import traceback
@@ -281,7 +280,8 @@ def bulk_create_admins():
             "created_admins": created_admins,
             "errors": errors
         }
-        
+
+        db.commit()
         return jsonify(response_data), 201
             
     except Exception as e:

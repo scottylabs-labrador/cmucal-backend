@@ -56,5 +56,5 @@ def get_session():
     if _SessionLocal is None:
         raise RuntimeError("DB not initialized. Call init_db() first.")
     session = _SessionLocal()
-    print(f"[DB] Session opened {id(session)}")
+    # print(f"[DB] Session opened {id(session)}")
     return session

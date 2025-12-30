@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, redirect, current_app, session, g
 from app.utils.date import convert_to_iso8601
 
 from app.services.google_service import (
+    create_cmucal_calendar,
     create_google_flow,
     fetch_user_credentials,
     list_user_calendars,
@@ -13,7 +14,7 @@ from app.services.google_service import (
     revoke_user_google_credentials
 )
 from app.models.google_event import save_google_event, get_google_event_by_local_id, delete_google_event_by_local_id
-from app.models.user import get_user_by_clerk_id
+from app.models.user import get_user_by_clerk_id, update_user_calendar_id
 
 google_bp = Blueprint("google", __name__)
 
@@ -56,11 +57,43 @@ def oauth2callback():
 def calendar_status():
     return jsonify({ "authorized": "credentials" in session })
 
-@google_bp.route("/calendars")
-def calendars():
+
+@google_bp.route("/calendars/init", methods=["POST"])
+def ensure_calendar():
+    db = g.db
+    try:
+        clerk_id = request.headers.get('Clerk-User-Id')
+        if not clerk_id:
+            print("❌ Missing Clerk-User-Id header")
+            return jsonify({"error": "Missing clerk_id"}), 400
+        
+        user = get_user_by_clerk_id(db, clerk_id)
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+        creds = fetch_user_credentials()
+        if not creds:
+            return jsonify({"error": "Unauthorized"}), 401
+        created = False
+        if not user.calendar_id:
+            calendar_id = create_cmucal_calendar(creds)
+            update_user_calendar_id(db, clerk_id, calendar_id)
+            user = get_user_by_clerk_id(db, clerk_id)
+            created = True
+            print("→ Created calendar for user:", calendar_id)
+            db.commit()
+        return jsonify({
+                    "calendar_id": user.calendar_id,
+                    "created": created
+                }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@google_bp.route("/calendars", methods=["GET"])
+def list_calendars():
     creds = fetch_user_credentials()
     if not creds:
-        return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": "Unauthorized"}), 401    
     return jsonify(list_user_calendars(creds))
 
 @google_bp.route("/calendar/events/bulk", methods=["POST"])
@@ -111,6 +144,8 @@ def add_event_route():
             end=data["end"]
         )
 
+        db.commit()
+
         return jsonify({ "googleEventId": event["id"] })
 
     except Exception as e:
@@ -141,6 +176,7 @@ def delete_event_route(local_event_id):
 
         delete_event(creds, record.google_event_id, calendar_id)
         delete_google_event_by_local_id(db, user.id, local_event_id)
+        db.commit()
 
         return jsonify({ "status": "deleted" })
 
