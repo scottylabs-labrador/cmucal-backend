@@ -4,6 +4,6 @@ from sqlalchemy import text
 def test_pytest_works():
     assert 1 + 1 == 2
 
-def test_sqlite_in_memory(db):
+def test_db(db):
     result = db.execute(text("SELECT 1")).scalar()
     assert result == 1

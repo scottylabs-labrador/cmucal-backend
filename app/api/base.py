@@ -1,8 +1,4 @@
-from flask import Blueprint, request, jsonify
-# from app.services.db import get_db
-# import os
-# from app.config.settings import Config
-from app.services.db import Base, SessionLocal
+from flask import Blueprint, request, jsonify, g
 from sqlalchemy import text
 from app.models.models import User 
 
@@ -18,15 +14,20 @@ def home():
 
 @base_bp.route("/test_db", methods=["GET"])
 def db_health_check():
-    with SessionLocal() as db:
-        try:
-            user = User(clerk_id="123456", email="test@example.com")
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            return jsonify({"status": "connected"})
-        except Exception as e:
-            return jsonify({"status": "error", "details": str(e)}), 500
+    db = g.db
+    try:
+        db.execute(text('SELECT 1'))
+        return jsonify({"status": "connected"})
+    except Exception as e:
+        return jsonify({"status": "error", "details": str(e)}), 500
+
+@base_bp.route("/test_db_error")
+def test_db_error():
+    db = g.db
+    db.execute(text('SELECT 1'))
+    raise RuntimeError("boom")
+
+
         
 @base_bp.route("/test_rrule", methods=["GET"])
 def test_rrule():
@@ -41,44 +42,44 @@ def test_rrule():
         weekday,
     )
 
-    with SessionLocal() as db:
-        try:
-            # rule = rrule(
-            #     freq=MONTHLY,
-            #     dtstart=datetime(2025, 7, 25),
-            #     byweekday=FR(-1),
-            #     count=5
-            # )
+    db = g.db
+    try:
+        # rule = rrule(
+        #     freq=MONTHLY,
+        #     dtstart=datetime(2025, 7, 25),
+        #     byweekday=FR(-1),
+        #     count=5
+        # )
 
-            # for dt in rule:
-            #     print(dt.date())
+        # for dt in rule:
+        #     print(dt.date())
 
-            # rule = RecurrenceRule(
-            #     frequency="MONTHLY",                # or Enum(Frequency.MONTHLY)
-            #     interval=1,
-            #     start_datetime=datetime(2025, 7, 1, 13, 0, tzinfo=timezone.utc),  # 1pm UTC
-            #     count=5,
-            #     until=None,
-            #     by_day=["-1FR"],                    # last Friday of month
-            #     by_month_day=None,                 # must be None to avoid override
-            #     by_month=None                      # all months
-            # )
+        # rule = RecurrenceRule(
+        #     frequency="MONTHLY",                # or Enum(Frequency.MONTHLY)
+        #     interval=1,
+        #     start_datetime=datetime(2025, 7, 1, 13, 0, tzinfo=timezone.utc),  # 1pm UTC
+        #     count=5,
+        #     until=None,
+        #     by_day=["-1FR"],                    # last Friday of month
+        #     by_month_day=None,                 # must be None to avoid override
+        #     by_month=None                      # all months
+        # )
 
-            # rrule = get_rrule_from_db_rule(rule)
+        # rrule = get_rrule_from_db_rule(rule)
 
 
-            
+        
 
-            start = datetime.now(timezone.utc) - timedelta(days=1)
-            until = datetime.now(timezone.utc) + timedelta(days=5)
+        start = datetime.now(timezone.utc) - timedelta(days=1)
+        until = datetime.now(timezone.utc) + timedelta(days=5)
 
-            rule = rrule(freq=DAILY, dtstart=start, until=until)
+        rule = rrule(freq=DAILY, dtstart=start, until=until)
 
-            print(list(rule))  # ✅ prints 6 daily dates
+        print(list(rule))  # ✅ prints 6 daily dates
 
-            # for dt in rrule:
-            #     print(dt.date())
+        # for dt in rrule:
+        #     print(dt.date())
 
-            return jsonify({"rrule": str(rrule)})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+        return jsonify({"rrule": str(rrule)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

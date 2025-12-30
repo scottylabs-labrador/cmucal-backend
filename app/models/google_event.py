@@ -13,8 +13,6 @@ def save_google_event(db, user_id, local_event_id, google_event_id, title, start
         synced_at=datetime.utcnow()
     )
     db.add(event)
-    db.commit()
-    db.refresh(event)
     return event
 
 
@@ -32,6 +30,5 @@ def delete_google_event_by_local_id(db, user_id, local_event_id):
 
     if event:
         db.delete(event)
-        db.commit()
         return True  # Successfully deleted
     return False  # No matching record

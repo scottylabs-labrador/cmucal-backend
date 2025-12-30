@@ -2,8 +2,9 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from flask import Flask
+from flask import Flask,g
 from werkzeug.middleware.proxy_fix import ProxyFix
+from app.services.db import get_session
 
 # Load environment variables from .env file BEFORE other imports
 def detect_env() -> str:
@@ -18,13 +19,12 @@ def detect_env() -> str:
     return "development"
 
 ENV = detect_env()
-print(f"[init] Detected APP_ENV={ENV}")
+# print(f"[init] Detected APP_ENV={ENV}")
 dotfile = f".env.{ENV}"
 load_dotenv(dotfile, override=False)
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
-from app.services.db import SessionLocal, Base
-
+from app.services.db import init_db
 
 def create_app():
     app = Flask(__name__)
@@ -36,6 +36,21 @@ def create_app():
     else:
         app.config.from_object(DevelopmentConfig)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) # tell Flask to trust Railway’s proxy headers
+
+    init_db()
+
+    @app.before_request
+    def open_db():
+        g.db = get_session()
+
+    @app.teardown_request
+    def close_db(exc):
+        db = g.pop("db", None)
+        if db:
+            if exc:
+                db.rollback()
+            db.close()
+            # print(f"[DB] Session closed {id(db)}")
 
     if not os.getenv("ALEMBIC_RUNNING"): # skip during Alembic
         from flask_cors import CORS
@@ -51,7 +66,6 @@ def create_app():
             "CORS_ALLOWED_ORIGINS",
             "http://localhost:3000,https://cmucal.vercel.app,http://cmucal.com,https://cal.scottylabs.org"
         ).split(",")]
-        
 
         CORS(app, resources={r"/api/*": {
             "origins": origins,

@@ -3,7 +3,7 @@ from app.models.admin import get_role
 
 # ---------- NO ROLES ----------
 def test_get_role_no_admin_entries(db, user_factory):
-    user = user_factory()
+    user = user_factory(email="user1@test.com")
 
     is_manager, is_admin, role_orgs = get_role(db, user_id=user.id)
 
@@ -14,7 +14,7 @@ def test_get_role_no_admin_entries(db, user_factory):
 
 # ---------- ADMIN ONLY ----------
 def test_get_role_admin_only(db, user_factory, org_factory, admin_factory):
-    user = user_factory()
+    user = user_factory(email="user1@test.com")
     org = org_factory()
 
     admin_factory(user=user, org=org, role="admin")
@@ -42,9 +42,9 @@ def test_get_role_manager_only(db, user_factory, org_factory, admin_factory):
 
 # ---------- MULTIPLE ROLES ----------
 def test_get_role_multiple_roles(db, user_factory, org_factory, admin_factory):
-    user = user_factory()
-    org1 = org_factory()
-    org2 = org_factory()
+    user = user_factory(email="user1@test.com")
+    org1 = org_factory(name="Org 1")
+    org2 = org_factory(name="Org 2")
 
     admin_factory(user=user, org=org1, role="admin")
     admin_factory(user=user, org=org2, role="manager")

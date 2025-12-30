@@ -32,8 +32,6 @@ def create_category(db, org_id: int, name: str):
     """
     category = Category(org_id=org_id, name=name)
     db.add(category)
-    db.commit()
-    db.refresh(category)
     return category
 
 def get_category_by_id(db, category_id: int):
@@ -74,7 +72,6 @@ def delete_category(db, category_id: int):
     category = db.query(Category).filter(Category.id == category_id).first()
     if category:
         db.delete(category)
-        db.commit()
         return True
     return False
 

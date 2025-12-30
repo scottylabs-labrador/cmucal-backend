@@ -9,9 +9,9 @@ from app.models.enums import FrequencyType, RecurrenceType
 
 class CrosslistGroup(Base):
     __tablename__ = 'crosslist_groups'
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='crosslist_groups_pkey'),
-    )
+    # __table_args__ = (
+    #     PrimaryKeyConstraint('id', name='crosslist_groups_pkey'),
+    # )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
     name: Mapped[str] = mapped_column(Text)
@@ -48,8 +48,8 @@ class Career(Base):
 class Organization(Base):
     __tablename__ = 'organizations'
     __table_args__ = (
-        PrimaryKeyConstraint('id', name='organizations_pkey'),
-        UniqueConstraint('name', name='organizations_name_key')
+        # PrimaryKeyConstraint('id', name='organizations_pkey'),
+        UniqueConstraint('name', name='organizations_name_key'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -71,7 +71,7 @@ class Course(Base):
     __tablename__ = 'courses'
     __table_args__ = (
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='courses_org_id_fkey'),
-        PrimaryKeyConstraint('id', name='courses_pkey')
+        # PrimaryKeyConstraint('id', name='courses_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -87,7 +87,7 @@ class CourseCrosslist(Base):
     __table_args__ = (
         ForeignKeyConstraint(['course_id'], ['courses.id'], ondelete='CASCADE', name='course_crosslist_course_id_fkey'),
         ForeignKeyConstraint(['group_id'], ['crosslist_groups.id'], ondelete='CASCADE', name='course_crosslist_group_id_fkey'),
-        PrimaryKeyConstraint('id', name='course_crosslist_pkey')
+        # PrimaryKeyConstraint('id', name='course_crosslist_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -102,8 +102,8 @@ class CourseCrosslist(Base):
 class Tag(Base):
     __tablename__ = 'tags'
     __table_args__ = (
-        PrimaryKeyConstraint('id', name='tags_pkey'),
-        UniqueConstraint('name', name='tags_name_key')
+        # PrimaryKeyConstraint('id', name='tags_pkey'),
+        UniqueConstraint('name', name='tags_name_key'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -115,9 +115,9 @@ class Tag(Base):
 
 class User(Base):
     __tablename__ = 'users'
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='users_pkey'),
-    )
+    # __table_args__ = (
+    #     PrimaryKeyConstraint('id', name='users_pkey'),
+    # )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
     email: Mapped[str] = mapped_column(Text)
@@ -157,7 +157,7 @@ class Category(Base):
     __tablename__ = 'categories'
     __table_args__ = (
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='Category_org_id_fkey'),
-        PrimaryKeyConstraint('id', name='Category_pkey')
+        # PrimaryKeyConstraint('id', name='Category_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -194,7 +194,7 @@ class CalendarSource(Base):
     __table_args__ = (
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='calendar_sources_category_id_fkey'),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='calendar_sources_org_id_fkey'),
-        PrimaryKeyConstraint('id', name='calendar_sources_pkey')
+        # PrimaryKeyConstraint('id', name='calendar_sources_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -230,7 +230,7 @@ class Schedule(Base):
     __tablename__ = 'schedules'
     __table_args__ = (
         ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE', name='schedules_user_id_fkey'),
-        PrimaryKeyConstraint('id', name='schedules_pkey')
+        # PrimaryKeyConstraint('id', name='schedules_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -248,7 +248,7 @@ class SyncedEvent(Base):
     __tablename__ = 'synced_events'
     __table_args__ = (
         ForeignKeyConstraint(['user_id'], ['users.id'], onupdate='CASCADE', name='synced_events_user_id_fkey'),
-        PrimaryKeyConstraint('id', name='synced_events_pkey')
+        # PrimaryKeyConstraint('id', name='synced_events_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -268,7 +268,7 @@ class Event(Base):
     __table_args__ = (
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='events_category_id_fkey'),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='events_org_id_fkey'),
-        PrimaryKeyConstraint('id', name='events_pkey')
+        # PrimaryKeyConstraint('id', name='events_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -350,7 +350,7 @@ class EventOccurrence(Base):
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='event_occurrences_category_id_fkey'),
         ForeignKeyConstraint(['event_id'], ['events.id'], ondelete='CASCADE', name='event_occurrences_event_id_fkey'),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='event_occurrences_org_id_fkey'),
-        PrimaryKeyConstraint('id', name='event_occurrences_pkey')
+        # PrimaryKeyConstraint('id', name='event_occurrences_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -394,7 +394,7 @@ class RecurrenceRule(Base):
     __tablename__ = 'recurrence_rules'
     __table_args__ = (
         ForeignKeyConstraint(['event_id'], ['events.id'], ondelete='CASCADE', name='recurrence_rules_event_id_fkey'),
-        PrimaryKeyConstraint('id', name='recurrence_rules_pkey')
+        # PrimaryKeyConstraint('id', name='recurrence_rules_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -420,7 +420,7 @@ class RecurrenceExdate(Base):
     __tablename__ = 'recurrence_exdates'
     __table_args__ = (
         ForeignKeyConstraint(['rrule_id'], ['recurrence_rules.id'], ondelete='CASCADE', name='recurrence_exdates_rrule_id_fkey'),
-        PrimaryKeyConstraint('id', name='recurrence_exdates_pkey')
+        # PrimaryKeyConstraint('id', name='recurrence_exdates_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -434,7 +434,7 @@ class RecurrenceRdate(Base):
     __tablename__ = 'recurrence_rdates'
     __table_args__ = (
         ForeignKeyConstraint(['rrule_id'], ['recurrence_rules.id'], ondelete='CASCADE', name='recurrence_rdates_rrule_id_fkey'),
-        PrimaryKeyConstraint('id', name='recurrence_rdates_pkey')
+        # PrimaryKeyConstraint('id', name='recurrence_rdates_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -448,7 +448,7 @@ class EventOverride(Base):
     __tablename__ = 'event_overrides'
     __table_args__ = (
         ForeignKeyConstraint(['rrule_id'], ['recurrence_rules.id'], ondelete='CASCADE', name='event_overrides_rrule_id_fkey'),
-        PrimaryKeyConstraint('id', name='event_overrides_pkey')
+        # PrimaryKeyConstraint('id', name='event_overrides_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -478,7 +478,7 @@ class RecurrenceOverride(Base):
     __tablename__ = 'recurrence_overrides'
     __table_args__ = (
         ForeignKeyConstraint(['rrule_id'], ['recurrence_rules.id'], ondelete='CASCADE', name='recurrence_overrides_rrule_id_fkey'),
-        PrimaryKeyConstraint('id', name='recurrence_overrides_pkey')
+        # PrimaryKeyConstraint('id', name='recurrence_overrides_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
