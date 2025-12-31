@@ -13,6 +13,27 @@ from app.utils.course_data import get_course_data
 
 orgs_bp = Blueprint("orgs", __name__)
 
+@orgs_bp.route("/get_all_orgs", methods=["GET"])
+def get_all_orgs():
+    db = g.db
+    try:
+        orgs = db.query(Organization).all()
+        orgs_list = []
+        for org in orgs:
+            orgs_list.append({
+                "id": org.id,
+                "name": org.name,
+                "description": org.description,
+                "type": org.type,
+                "tags": org.tags,
+            })
+
+        return jsonify(orgs_list), 200
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
 @orgs_bp.route("/get_course_orgs", methods=["GET"])
 def get_course_orgs():
     db = g.db
