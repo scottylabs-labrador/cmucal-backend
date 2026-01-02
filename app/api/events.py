@@ -343,7 +343,6 @@ def get_tags():
 
 @events_bp.route("/<event_id>/tags", methods=["GET"])
 def get_event_tags(event_id):
-<<<<<<< HEAD
     print("🔗🔗🔗🏷🏷🏷😄 ", request.url)
     with SessionLocal() as db:
         try:
@@ -360,49 +359,32 @@ def get_event_tags(event_id):
             # org = db.query(Organization).filter_by(id=event.org_id).first()
             # event_dict["org"] = org.name
             # event_dict["user_is_admin"] = True if get_admin_by_org_and_user(db, event.org_id, user.id) else False
-=======
-    db = g.db
-    try:
-        # # get user
-        # clerk_id = request.args.get("user_id")
-        # if not clerk_id:
-        #     return jsonify({"error": "Missing user_id"}), 400
-        # user = get_user_by_clerk_id(db, clerk_id)
-        
-        # # event = db.query(Event).filter_by(id=event_id).first()
-        # event = get_event_by_id(db, event_id)
-        # event_dict = event.as_dict()
-        
-        # org = db.query(Organization).filter_by(id=event.org_id).first()
-        # event_dict["org"] = org.name
-        # event_dict["user_is_admin"] = True if get_admin_by_org_and_user(db, event.org_id, user.id) else False
->>>>>>> main
 
-        # tags = (
-        #     db.query(Tag.id, Tag.name)
-        #     .join(Tag.event_tags) # relationship set up in models
-        #     # .join(EventTag, Tag.id == EventTag.tag_id)  # explicit join condition
-        #     .filter(EventTag.event_id == event_id)      # filter by the event id
-        #     .all()
-        # )
-        tags = get_tags_by_event(db, event_id)
+            # tags = (
+            #     db.query(Tag.id, Tag.name)
+            #     .join(Tag.event_tags) # relationship set up in models
+            #     # .join(EventTag, Tag.id == EventTag.tag_id)  # explicit join condition
+            #     .filter(EventTag.event_id == event_id)      # filter by the event id
+            #     .all()
+            # )
+            tags = get_tags_by_event(db, event_id)
 
-        tag_names = [{"id": t.id, "name": t.name} for t in tags]
+            tag_names = [{"id": t.id, "name": t.name} for t in tags]
 
-        # # check if saved
-        # if user:
-        #     saved = db.query(UserSavedEvent.event_id).filter_by(user_id=user.id, event_id=event_id).first()
-        #     event_dict["user_saved"] = (saved is not None)
-        # else:
-        #     event_dict["user_saved"] = False
-        print("👉🏷🏷🏷🏷 👈 ", tag_names)
+            # # check if saved
+            # if user:
+            #     saved = db.query(UserSavedEvent.event_id).filter_by(user_id=user.id, event_id=event_id).first()
+            #     event_dict["user_saved"] = (saved is not None)
+            # else:
+            #     event_dict["user_saved"] = False
+            print("👉🏷🏷🏷🏷 👈 ", tag_names)
 
-        return tag_names
+            return tag_names
 
-    except Exception as e:
-        import traceback
-        print("❌ Exception:", traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+        except Exception as e:
+            import traceback
+            print("❌ Exception:", traceback.format_exc())
+            return jsonify({"error": str(e)}), 500
 
 @events_bp.route("/", methods=["GET"])
 def get_all_events():
