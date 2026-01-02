@@ -76,11 +76,15 @@ class Course(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
     course_number: Mapped[str] = mapped_column(Text)
+    course_name: Mapped[str] = mapped_column(Text)
     org_id: Mapped[int] = mapped_column(BigInteger)
+    semesters: Mapped[Optional[list]] = mapped_column(ARRAY(Text()))
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'))
 
     org: Mapped['Organization'] = relationship('Organization', back_populates='courses')
     course_crosslist: Mapped[List['CourseCrosslist']] = relationship('CourseCrosslist', back_populates='course')
+
+
 
 class CourseCrosslist(Base):
     __tablename__ = 'course_crosslist'
