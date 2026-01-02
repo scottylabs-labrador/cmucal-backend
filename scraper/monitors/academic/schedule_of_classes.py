@@ -2,6 +2,7 @@ import datetime
 import bs4
 import requests
 import urllib3  # <-- 1. Import urllib3 to suppress warnings
+from scraper.helpers.semester import get_current_semester
 from scraper.monitors.base_scraper import BaseScraper
 import re
 
@@ -18,6 +19,8 @@ class ScheduleOfClasses:
         lecture_time_end,
         location,
         semester,
+        sem_start,
+        sem_end
     ):
         self.id = id
         self.course_num = course_num
@@ -28,11 +31,19 @@ class ScheduleOfClasses:
         self.lecture_time_end = lecture_time_end
         self.location = location
         self.semester = semester
-
+        self.sem_start = sem_start
+        self.sem_end = sem_end
 
 class ScheduleOfClassesScraper(BaseScraper):
-    def __init__(self, db):
+    def __init__(self, db, semester_label: str):
         super().__init__(db, "Schedule of Classes", "SOC")
+
+        (
+            self.soc_layout,
+            self.semester_label,
+            self.sem_start,
+            self.sem_end,
+        ) = get_current_semester(semester_label)
 
         self.session = requests.Session()
         self.headers = {
@@ -49,10 +60,8 @@ class ScheduleOfClassesScraper(BaseScraper):
         print("Running Schedule of Classes scraper...")
         resources = self._fetch_courses()
         for resource in resources:
-
             print(f"Added course: {resource.course_num} - {resource.course_name}")
         # Add the logic to store data in database
-
 
     def scrape_data_only(self):
         resources = self._fetch_courses()
@@ -65,13 +74,12 @@ class ScheduleOfClassesScraper(BaseScraper):
         return self._parse_html(html)
 
     def _fetch_html(self):
-        semester, _ = self.getCurrentSemester()
-        if not semester:
+        if not self.soc_layout:
             print("Error: Could not determine current semester.")
             return None
-        print(f"Current semester identified as: {semester}")
+        print(f"Current semester identified as: {self.semester_label}")
 
-        url = f"https://enr-apps.as.cmu.edu/assets/SOC/{semester}.htm"
+        url = f"https://enr-apps.as.cmu.edu/assets/SOC/{self.soc_layout}.htm"
 
         try:
             response = self.session.get(url, headers=self.headers)
@@ -108,7 +116,6 @@ class ScheduleOfClassesScraper(BaseScraper):
         return self._parse_tables(soup)
 
     def _parse_tables(self, soup):
-        _, semester_label = self.getCurrentSemester()
 
         all_tables = soup.find_all("table", {"border": "0"})
 
@@ -134,7 +141,7 @@ class ScheduleOfClassesScraper(BaseScraper):
             for row_idx, course in enumerate(rows):
                 cols = course.find_all("td")
                 last_course_num, last_course_name = self._process_row_columns(
-                    cols, last_course_num, last_course_name, semester_label, resources
+                    cols, last_course_num, last_course_name, self.semester_label, resources
                 )
 
         print(f"Scraper found {len(resources)} courses.")
@@ -194,50 +201,10 @@ class ScheduleOfClassesScraper(BaseScraper):
             lecture_time_start=time_start,
             lecture_time_end=time_end,
             location=location,
-            semester=semester_label,
+            semester=self.semester_label,
+            sem_start=self.sem_start,
+            sem_end=self.sem_end,
         )
         resources.append(resource)
 
         return last_course_num, last_course_name
-
-    def getCurrentSemester(self):
-        current_date = datetime.datetime.now()
-
-        ranges = [
-            (
-                datetime.datetime(2025, 12, 20),
-                datetime.datetime(2026, 5, 1),
-                "sched_layout_spring",
-                "Spring",
-            ),
-            (
-                datetime.datetime(2026, 5, 10),
-                datetime.datetime(2026, 6, 18),
-                "sched_layout_summer_1",
-                "Summer1",
-            ),
-            (
-                datetime.datetime(2026, 6, 20),
-                datetime.datetime(2026, 7, 31),
-                "sched_layout_summer_2",
-                "Summer2",
-            ),
-            (
-                datetime.datetime(2026, 8, 15),
-                datetime.datetime(2026, 12, 12),
-                "sched_layout_fall",
-                "Fall",
-            ),
-        ]
-
-        for start, end, soc_layout, semester_name in ranges:
-            if start <= current_date <= end:
-                year_suffix = end.year % 100  # based on END date
-                semester_label = f"{semester_name}_{year_suffix}"
-                return soc_layout, semester_label
-
-        print("Warning: Current date does not fall within any defined semester ranges.")
-        return None, None
-
-    def is_real_course_row(self, course_num):
-        return course_num.isdigit()

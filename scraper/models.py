@@ -118,7 +118,9 @@ class ScheduleOfClasses:
         lecture_time_start: str, 
         lecture_time_end: str,
         location: str,
-        semester: str
+        semester: str,
+        sem_start: datetime,
+        sem_end: datetime
     ):
         self.id = id
         self.course_num = course_num
@@ -129,6 +131,8 @@ class ScheduleOfClasses:
         self.lecture_time_end = lecture_time_end
         self.location = location
         self.semester = semester
+        self.sem_start = sem_start
+        self.sem_end = sem_end
     
     def to_json(self):
         json = {
@@ -139,11 +143,13 @@ class ScheduleOfClasses:
             "lecture_time_start": self.lecture_time_start,
             "lecture_time_end": self.lecture_time_end,
             "location": self.location,
-            "semester": self.semester
+            "semester": self.semester,
+            "sem_start": self.sem_start,
+            "sem_end": self.sem_end
         }
         return json
     
     def __str__(self):
-        return f"{self.course_num} | {self.course_name} | Lecture Section: {self.lecture_section} | Lecture: {self.lecture_days} {self.lecture_time_start} {self.lecture_time_end} | Location: {self.location} | Semester: {self.semester}"  
+        return f"{self.course_num} | {self.course_name} | Lecture Section: {self.lecture_section} | Lecture: {self.lecture_days} {self.lecture_time_start} {self.lecture_time_end} | Location: {self.location} | Semester: {self.semester} | Start: {self.sem_start} | End: {self.sem_end}"  
     
         
