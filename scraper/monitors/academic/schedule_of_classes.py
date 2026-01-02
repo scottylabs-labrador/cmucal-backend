@@ -10,9 +10,9 @@ class ScheduleOfClasses:
     def __init__(
         self,
         id,
-        course_id,
+        course_num,
         course_name,
-        event_type,
+        lecture_section,
         lecture_days,
         lecture_time_start,
         lecture_time_end,
@@ -20,9 +20,9 @@ class ScheduleOfClasses:
         semester,
     ):
         self.id = id
-        self.course_id = course_id
+        self.course_num = course_num
         self.course_name = course_name
-        self.event_type = event_type
+        self.lecture_section = lecture_section
         self.lecture_days = lecture_days
         self.lecture_time_start = lecture_time_start
         self.lecture_time_end = lecture_time_end
@@ -49,8 +49,10 @@ class ScheduleOfClassesScraper(BaseScraper):
         print("Running Schedule of Classes scraper...")
         resources = self._fetch_courses()
         for resource in resources:
-            print(f"Added course: {resource.course_id} - {resource.course_name}")
+
+            print(f"Added course: {resource.course_num} - {resource.course_name}")
         # Add the logic to store data in database
+
 
     def scrape_data_only(self):
         resources = self._fetch_courses()
@@ -61,7 +63,7 @@ class ScheduleOfClassesScraper(BaseScraper):
         if not html:
             return []
         return self._parse_html(html)
-    
+
     def _fetch_html(self):
         semester, _ = self.getCurrentSemester()
         if not semester:
@@ -78,7 +80,7 @@ class ScheduleOfClassesScraper(BaseScraper):
             # Pattern: After a row ending with </TR>, if the next tag is <TD>, insert <TR>
 
             fixed_html = self._fix_malformed_html(response.text)
-            
+
             print("Fixed malformed HTML by inserting missing <TR> tags")
 
             # Debug: save both versions
@@ -92,19 +94,19 @@ class ScheduleOfClassesScraper(BaseScraper):
             print(f"Error fetching URL: {url}")
             print(f"Exception: {e}")
             return None
-    
+
     def _fix_malformed_html(self, html):
         # Replace pattern: </TR>\n<TD with </TR>\n<TR><TD
         fixed_html = re.sub(
             r"(</TR>)\s*(<TD)", r"\1\n<TR>\2", html, flags=re.IGNORECASE
         )
         return fixed_html
-        
+
     def _parse_html(self, html):
         soup = bs4.BeautifulSoup(html, "html.parser")
         print("Successfully fetched and parsed the schedule of classes page.")
         return self._parse_tables(soup)
-    
+
     def _parse_tables(self, soup):
         _, semester_label = self.getCurrentSemester()
 
@@ -125,27 +127,26 @@ class ScheduleOfClassesScraper(BaseScraper):
         for table_idx, table in enumerate(tables):
             rows = table.find_all("tr")
 
-            last_course_id = None
+            last_course_num = None
             last_course_name = None
 
             # Process normal <tr> rows
             for row_idx, course in enumerate(rows):
                 cols = course.find_all("td")
-                last_course_id, last_course_name = self._process_row_columns(
-                    cols, last_course_id, last_course_name, semester_label, resources
+                last_course_num, last_course_name = self._process_row_columns(
+                    cols, last_course_num, last_course_name, semester_label, resources
                 )
 
         print(f"Scraper found {len(resources)} courses.")
         return resources
 
     def _process_row_columns(
-        self, cols, last_course_id, last_course_name, semester_label, resources
+        self, cols, last_course_num, last_course_name, semester_label, resources
     ):
         """Process a set of columns representing a course row"""
         if len(cols) < 7:
-            return last_course_id, last_course_name
-
-        raw_course_id = cols[0].text.strip()
+            return last_course_num, last_course_name
+        raw_course_num = cols[0].text.strip()
         raw_course_name = cols[1].text.strip()
         lecture_section = cols[3].text.strip()
 
@@ -156,15 +157,15 @@ class ScheduleOfClassesScraper(BaseScraper):
             self._last_lecture_section = None
 
         # Determine the course name to use for this row
-        if raw_course_id:
+        if raw_course_num:
             # New course row - this becomes the base
-            last_course_id = raw_course_id
+            last_course_num = raw_course_num
             last_course_name = raw_course_name
             self._last_base_course_name = raw_course_name
         elif raw_course_name:
             # Continuation row with subtitle - combine base + subtitle
             last_course_name = self._last_base_course_name + " " + raw_course_name
-        # else: no course_id and no course_name means we keep last_course_name as-is
+        # else: no course_num and no course_name means we keep last_course_name as-is
 
         # Update lecture section if present
         if lecture_section:
@@ -173,8 +174,8 @@ class ScheduleOfClassesScraper(BaseScraper):
             # Use the last known lecture section
             lecture_section = self._last_lecture_section
 
-        if not last_course_id or not self.is_real_course_row(last_course_id):
-            return last_course_id, last_course_name
+        if not last_course_num or not self.is_real_course_row(last_course_num):
+            return last_course_num, last_course_name
 
         days = cols[4].text.strip()
         time_start = cols[5].text.strip()
@@ -182,13 +183,13 @@ class ScheduleOfClassesScraper(BaseScraper):
         location = cols[7].text.strip() if len(cols) > 7 else "TBA"
 
         if days == "TBA" or not time_start:
-            return last_course_id, last_course_name
+            return last_course_num, last_course_name
 
         resource = ScheduleOfClasses(
             id=None,
-            course_id=last_course_id,
+            course_num=last_course_num,
             course_name=last_course_name,
-            event_type=lecture_section,
+            lecture_section=lecture_section,
             lecture_days=days,
             lecture_time_start=time_start,
             lecture_time_end=time_end,
@@ -197,7 +198,7 @@ class ScheduleOfClassesScraper(BaseScraper):
         )
         resources.append(resource)
 
-        return last_course_id, last_course_name
+        return last_course_num, last_course_name
 
     def getCurrentSemester(self):
         current_date = datetime.datetime.now()
@@ -238,5 +239,5 @@ class ScheduleOfClassesScraper(BaseScraper):
         print("Warning: Current date does not fall within any defined semester ranges.")
         return None, None
 
-    def is_real_course_row(self, course_id):
-        return course_id.isdigit()
+    def is_real_course_row(self, course_num):
+        return course_num.isdigit()

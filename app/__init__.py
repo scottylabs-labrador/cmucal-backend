@@ -1,27 +1,11 @@
 # Initializes the Flask app, database, and JWT authentication.
 import os
-from dotenv import load_dotenv
-from pathlib import Path
 from flask import Flask,g
 from werkzeug.middleware.proxy_fix import ProxyFix
 from app.services.db import get_session
 
-# Load environment variables from .env file BEFORE other imports
-def detect_env() -> str:
-    # Respect explicit setting (e.g., in Railway dashboard)
-    app_env = os.getenv("APP_ENV")
-    if app_env:
-        return app_env.lower()
-    # If we’re on Railway and APP_ENV isn’t set, assume production
-    if os.getenv("RAILWAY_PROJECT_ID") or os.getenv("RAILWAY_ENVIRONMENT"):
-        return "production"
-    # Local default
-    return "development"
-
-ENV = detect_env()
-# print(f"[init] Detected APP_ENV={ENV}")
-dotfile = f".env.{ENV}"
-load_dotenv(dotfile, override=False)
+from app.env import load_env
+ENV = load_env()
 
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from app.services.db import init_db

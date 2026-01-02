@@ -111,29 +111,30 @@ class ScheduleOfClasses:
     def __init__(
         self, 
         id: int, 
-        course_id: str, 
+        course_num: str, 
         course_name: str, 
-        event_type: str,
+        lecture_section: str,
         lecture_days: str, 
         lecture_time_start: str, 
         lecture_time_end: str,
         location: str,
         semester: str
     ):
-        self.course_id = course_id  
-        self.course_name = course_name  
-        self.event_type = event_type
-        self.lecture_days = lecture_days  
+        self.id = id
+        self.course_num = course_num
+        self.course_name = course_name
+        self.lecture_section = lecture_section
+        self.lecture_days = lecture_days
         self.lecture_time_start = lecture_time_start
         self.lecture_time_end = lecture_time_end
-        self.location = location 
+        self.location = location
         self.semester = semester
     
     def to_json(self):
         json = {
-            "course_id": self.course_id,
+            "course_num": self.course_num,
             "course_name": self.course_name,
-            "event_type": self.event_type,
+            "lecture_section": self.lecture_section,
             "lecture_days": self.lecture_days,
             "lecture_time_start": self.lecture_time_start,
             "lecture_time_end": self.lecture_time_end,
@@ -143,6 +144,6 @@ class ScheduleOfClasses:
         return json
     
     def __str__(self):
-        return f"{self.course_id} | {self.course_name} | Type: {self.event_type} | Lecture: {self.lecture_days} {self.lecture_time_start} {self.lecture_time_end} | Location: {self.location} | Semester: {self.semester}"  
+        return f"{self.course_num} | {self.course_name} | Lecture Section: {self.lecture_section} | Lecture: {self.lecture_days} {self.lecture_time_start} {self.lecture_time_end} | Location: {self.location} | Semester: {self.semester}"  
     
         
