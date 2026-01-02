@@ -1,33 +1,21 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim-bullseye
+# -------- Dockerfile (psycopg2-binary + Gunicorn) --------
+FROM python:3.11-slim
 
-# Set the working directory in the container
+# sane defaults
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
 WORKDIR /app
 
-# Copy the requirements file into the container at /app
-COPY requirements.txt .
+# Install Python deps first for better layer caching
+COPY requirements.txt ./
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir gunicorn psycopg2-binary
 
-# Install any needed packages specified in requirements.txt
-# Handle psycopg2 dependencies for PostgreSQL
-RUN apt-get update
-
-RUN apt-get install -y libpq-dev gcc
-
-RUN pip install -r requirements.txt
-
-RUN apt-get clean
-
-RUN rm -rf /var/lib/apt/lists/*
-
-# Copy the rest of the application code into the container
+# Copy the application code
 COPY . .
 
-# Set environment variables for Flask
-ENV FLASK_APP=run.py
-ENV FLASK_RUN_HOST=0.0.0.0
-
-# Expose the port Flask runs on
-EXPOSE 5001
-
-# Command to run the Flask application
-CMD ["python", "run.py"]
+# Start Gunicorn; Railway provides $PORT
+CMD ["sh", "-c", "exec gunicorn 'run:app' -b 0.0.0.0:${PORT:-8080} --workers ${WEB_CONCURRENCY:-2} --threads ${GTHREADS:-4} --timeout ${TIMEOUT:-120} --access-logfile - --error-logfile -"]

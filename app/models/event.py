@@ -67,7 +67,6 @@ def delete_event(db, event_id: int):
     event = db.query(Event).filter(Event.id == event_id).first()
     if event:
         db.delete(event)
-        db.commit()
         return True
     return False
 def get_events_by_org(db, org_id: int):

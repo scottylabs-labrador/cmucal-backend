@@ -32,8 +32,6 @@ def create_category(db, org_id: int, name: str):
     """
     category = Category(org_id=org_id, name=name)
     db.add(category)
-    db.commit()
-    db.refresh(category)
     return category
 
 def get_category_by_id(db, category_id: int):
@@ -49,6 +47,19 @@ def get_category_by_id(db, category_id: int):
     """
     return db.query(Category).filter(Category.id == category_id).first()
 
+def get_categories_by_org_id(db, org_id: int):
+    """
+    Retrieve all categories for an organization.
+
+    Args:
+        db: Database session.
+        org_id: ID of the organization.
+
+    Returns:
+        List of Category objects for the organization.
+    """
+    return db.query(Category).filter(Category.org_id == org_id).all()
+
 def delete_category(db, category_id: int):
     """
     Delete a category by its ID.
@@ -61,7 +72,6 @@ def delete_category(db, category_id: int):
     category = db.query(Category).filter(Category.id == category_id).first()
     if category:
         db.delete(category)
-        db.commit()
         return True
     return False
 

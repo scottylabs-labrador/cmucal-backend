@@ -1,61 +1,88 @@
 # Initializes the Flask app, database, and JWT authentication.
 import os
 from dotenv import load_dotenv
+from pathlib import Path
+from flask import Flask,g
+from werkzeug.middleware.proxy_fix import ProxyFix
+from app.services.db import get_session
 
 # Load environment variables from .env file BEFORE other imports
-load_dotenv()
+def detect_env() -> str:
+    # Respect explicit setting (e.g., in Railway dashboard)
+    app_env = os.getenv("APP_ENV")
+    if app_env:
+        return app_env.lower()
+    # If we’re on Railway and APP_ENV isn’t set, assume production
+    if os.getenv("RAILWAY_PROJECT_ID") or os.getenv("RAILWAY_ENVIRONMENT"):
+        return "production"
+    # Local default
+    return "development"
 
-from flask import Flask
-from flask_cors import CORS
-from app.api.users import users_bp
-from app.api.organizations import orgs_bp
-from app.api.base import base_bp
-from app.api.google_oauth import google_bp
-from app.api.events import events_bp
-from app.api.schedule import schedule_bp
-from app.services.db import SessionLocal, Base
-from app.cli import import_courses_command
+ENV = detect_env()
+# print(f"[init] Detected APP_ENV={ENV}")
+dotfile = f".env.{ENV}"
+load_dotenv(dotfile, override=False)
 
-
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
+from app.services.db import init_db
 
 def create_app():
     app = Flask(__name__)
 
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-    app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
-    app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
-    app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
-    app.config["FRONTEND_REDIRECT_URI"] = os.getenv("FRONTEND_REDIRECT_URI")
-    
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI")
-    app.config["GOOGLE_CLIENT_SECRET_FILE"] = "client_secret.json" 
+    if ENV == "production":
+        app.config.from_object(ProductionConfig)
+    elif ENV == "test":
+        app.config.from_object(TestingConfig)
+    else:
+        app.config.from_object(DevelopmentConfig)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) # tell Flask to trust Railway’s proxy headers
 
-    app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
-    app.config["SUPABASE_API_KEY"] = os.getenv("SUPABASE_API_KEY")
-    app.config["SUPABASE_DB_URL"] = os.getenv("SUPABASE_DB_URL")
+    init_db()
 
-    CORS(app, resources={r"/api/*": {
-        "origins": "http://localhost:3000",
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Clerk-User-Id"],
-    }}, supports_credentials=True)
+    @app.before_request
+    def open_db():
+        g.db = get_session()
+
+    @app.teardown_request
+    def close_db(exc):
+        db = g.pop("db", None)
+        if db:
+            if exc:
+                db.rollback()
+            db.close()
+            # print(f"[DB] Session closed {id(db)}")
+
+    if not os.getenv("ALEMBIC_RUNNING"): # skip during Alembic
+        from flask_cors import CORS
+        from app.api.users import users_bp
+        from app.api.organizations import orgs_bp
+        from app.api.base import base_bp
+        from app.api.google import google_bp
+        from app.api.events import events_bp
+        from app.api.schedule import schedule_bp
+        from app.cli import import_courses_command
+
+        origins = [o.strip() for o in os.getenv(
+            "CORS_ALLOWED_ORIGINS",
+            "http://localhost:3000,https://cmucal.vercel.app,http://cmucal.com,https://cal.scottylabs.org"
+        ).split(",")]
+
+        CORS(app, resources={r"/api/*": {
+            "origins": origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "Clerk-User-Id"],
+        }}, supports_credentials=True)
 
 
-    # Register blueprints (modular routing)
-    app.register_blueprint(users_bp, url_prefix="/api/users")
-    app.register_blueprint(orgs_bp, url_prefix="/api/organizations")
-    app.register_blueprint(google_bp, url_prefix="/api/google")
-    app.register_blueprint(events_bp, url_prefix="/api/events")
-    app.register_blueprint(schedule_bp, url_prefix="/api/schedule")
-    app.register_blueprint(base_bp)
-
-    # CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True, automatic_options=True)
-    
-    # Register CLI command
-    app.cli.add_command(import_courses_command)
+        # Register blueprints (modular routing)
+        app.register_blueprint(users_bp, url_prefix="/api/users")
+        app.register_blueprint(orgs_bp, url_prefix="/api/organizations")
+        app.register_blueprint(google_bp, url_prefix="/api/google")
+        app.register_blueprint(events_bp, url_prefix="/api/events")
+        app.register_blueprint(schedule_bp, url_prefix="/api/schedule")
+        app.register_blueprint(base_bp)
+        
+        # Register CLI command
+        app.cli.add_command(import_courses_command)
 
     return app

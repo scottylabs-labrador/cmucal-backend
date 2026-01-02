@@ -16,7 +16,6 @@ def create_organization(db, name: str, description: str = None, type: str = None
     """
     org = Organization(name=name, description=description, type=type)
     db.add(org)
-    db.commit()
     return org
 
 def get_orgs_by_type(db, org_type: str):
@@ -36,6 +35,17 @@ def get_organization_by_id(db, org_id: int):
     """
     return db.query(Organization).filter(Organization.id == org_id).first()
 
+def get_organization_by_name(db, name: str):
+    """
+    Retrieve an organization by its name.
+    Args:
+        db: Database session.
+        name: Name of the organization.
+    Returns:
+        The Organization object if found, otherwise None.
+    """
+    return db.query(Organization).filter(Organization.name == name).first()
+
 def delete_organization(db, org_id: int):
     """
     Delete an organization by its ID.
@@ -50,7 +60,6 @@ def delete_organization(db, org_id: int):
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if org:
         db.delete(org)
-        db.commit()
         return True
     return False
 

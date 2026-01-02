@@ -14,6 +14,4 @@ def create_schedule(db, user_id: int, name: str):
     """
     schedule = Schedule(user_id=user_id, name=name)
     db.add(schedule)
-    db.commit()
-    db.refresh(schedule)
     return schedule

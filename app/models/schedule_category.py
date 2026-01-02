@@ -17,6 +17,4 @@ def create_schedule_category(db, schedule_id: int, category_id: int):
         category_id=category_id
     )
     db.add(schedule_category)
-    db.commit()
-    db.refresh(schedule_category)
     return schedule_category

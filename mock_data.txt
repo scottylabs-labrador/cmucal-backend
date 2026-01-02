@@ -1,3 +1,5 @@
+[OUTDATED] still stored here as a reference to how to use curl, but do not use this
+
 // organizations
 curl -X POST http://localhost:5001/api/orgs/create_org \
   -H "Content-Type: application/json" \

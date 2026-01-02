@@ -17,6 +17,4 @@ def save_user_saved_event(db, user_id: int, event_id: int, google_event_id: str)
         google_event_id=google_event_id
     )
     db.add(user_saved_event)
-    db.commit()
-    db.refresh(user_saved_event)
     return user_saved_event
