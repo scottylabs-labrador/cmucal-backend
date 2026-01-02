@@ -11,7 +11,15 @@ def get_supabase() -> Client:
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
+        print(f"[Supabase] Connecting to {url}")
+        print(f"[Supabase] Using 'SERVICE ROLE' key: {'SET' if key else 'MISSING'}")
+
         if not url or not key:
-            raise RuntimeError("Supabase env vars not set")
+            raise RuntimeError(
+                "Supabase env vars not set. "
+                "Did you forget to call load_env() at process startup?"
+            )
+
         _supabase = create_client(url, key)
+
     return _supabase

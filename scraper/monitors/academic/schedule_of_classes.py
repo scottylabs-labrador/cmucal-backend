@@ -208,3 +208,6 @@ class ScheduleOfClassesScraper(BaseScraper):
         resources.append(resource)
 
         return last_course_num, last_course_name
+    def is_real_course_row(self, course_num: str) -> bool:
+        # if is digit, then yes
+        return course_num.isdigit()

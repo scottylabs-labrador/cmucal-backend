@@ -1,3 +1,8 @@
+# scraper/scripts/export_soc.py
+
+from app.env import load_env
+ENV = load_env()
+
 from scraper.monitors.academic import ScheduleOfClassesScraper
 from scraper.persistence.supabase_categories import ensure_lecture_category
 from scraper.transforms.soc_org_course import build_orgs_and_courses
@@ -8,8 +13,6 @@ from scraper.transforms.soc_events import build_events_and_rrules
 from scraper.persistence.supabase_events import insert_events
 from scraper.persistence.supabase_recurrence import replace_recurrence_rules
 
-from app.env import load_env
-ENV = load_env()
 
 def export_soc():
     """ Scrape the Schedule of Classes and export to Supabase 

@@ -1,11 +1,14 @@
 # Updated README
-1. `cd scraper`
+<!-- 1. `cd scraper`
 2. Run:
 `python exporters/handshake_export_to_excel.py`
 `python exporters/tartanconnect_export_to_excel.py`
 `python exporters/si_export_to_excel.py`
 `python exporters/peer_tutoring_export_to_excel.py`
-`python exporters/schedule_of_classes_export_to_excel.py`
+`python exporters/schedule_of_classes_export_to_excel.py` -->
+1. activate the virtual environment at the root directory
+2. Run:
+`python -m scraper.scripts.export_soc`
 
 # Old README
 
