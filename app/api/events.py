@@ -486,7 +486,6 @@ def get_specific_events(event_id):
 @events_bp.route("/<event_id>", methods=["PATCH", "PUT"])
 def update_event(event_id):
     print("🔗🔢", request.url)
-<<<<<<< HEAD
     with SessionLocal() as db:
         try:
             data = request.get_json()
@@ -503,16 +502,6 @@ def update_event(event_id):
                 db.rollback()
                 return jsonify({"error": "User not found"}), 404
             user_edited.append(user.id)
-=======
-    db = g.db
-    try:
-        data = request.get_json()
-        print("🔢🔢🔢🔢🔢DATA ", data)
-        
-        event_data = data.get("updated_event", None)
-        tag_data = data.get("updated_tags", None)
-        recurrence_data = data.get("updated_recurrence", None)
->>>>>>> main
 
         if not event_data: 
             return jsonify({"error": "No event data provided"}), 400
@@ -522,16 +511,10 @@ def update_event(event_id):
         if not event:
             return jsonify({"error": "Event not found"}), 400
 
-<<<<<<< HEAD
-            for key, value in event_data.items(): 
-                if hasattr(event, key):
-                    setattr(event, key, value)
-            # event["user_edited"]=user_edited # idk is this correct??
-=======
         for key, value in event_data.items(): 
             if hasattr(event, key):
                 setattr(event, key, value)
->>>>>>> main
+        # event["user_edited"]=user_edited # idk is this correct??
 
         # update event tag
         if tag_data:
@@ -595,13 +578,9 @@ def update_event(event_id):
 
         # TODO: update the corresponding type table (academic/career/club)
 
-<<<<<<< HEAD
-            db.commit()
-=======
         # TODO: update recurrence table
 
         db.commit()
->>>>>>> main
 
         event_dict = event.as_dict()
         return jsonify(event_dict), 200
