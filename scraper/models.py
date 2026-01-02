@@ -145,4 +145,47 @@ class ScheduleOfClasses:
     def __str__(self):
         return f"{self.course_id} | {self.course_name} | Type: {self.event_type} | Lecture: {self.lecture_days} {self.lecture_time_start} {self.lecture_time_end} | Location: {self.location} | Semester: {self.semester}"  
     
-        
+
+
+
+class SupplementalInstruction:
+    """
+    Example:
+    {
+        "course_num": "03121",
+        "course_name": "Modern Biology",
+        "professors": [
+            "Wisniewski"
+        ],
+        "si_leaders": [
+            "Hayden",
+            "Louisa"
+        ],
+        "time_locations": [
+            {
+                "recurrence_frequency": "WEEKLY",
+                "recurrence_interval": 1,
+                "recurrence_by_day": "SU",
+                "start_datetime": "2026-01-04T14:00:00",
+                "end_datetime": "2026-01-04T15:00:00",
+                "location": "POS 282"
+            }
+        ]
+    }
+
+    When processing, first time_locations should be converted 
+    to RecurrenceRule and the rest will be overrides
+    """
+    def __init__(
+        self,
+        course_num: str,
+        course_name: str,
+        professors: list[str],
+        si_leaders: list[str],
+        time_locations: list[dict],  # Example: see above
+    ):
+        self.course_num = course_num
+        self.course_name = course_name
+        self.professors = professors
+        self.si_leaders = si_leaders
+        self.time_locations = time_locations
