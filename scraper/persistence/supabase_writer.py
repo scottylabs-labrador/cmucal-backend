@@ -23,3 +23,7 @@ def get_supabase() -> Client:
         _supabase = create_client(url, key)
 
     return _supabase
+
+def chunked(iterable, size):
+    for i in range(0, len(iterable), size):
+        yield iterable[i:i + size]

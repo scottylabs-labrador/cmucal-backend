@@ -1,4 +1,4 @@
-from scraper.persistence.supabase_writer import get_supabase
+from scraper.persistence.supabase_writer import chunked, get_supabase
 from scraper.helpers.event import make_event_key
 
 
@@ -11,24 +11,31 @@ def insert_events(db, events: list) -> dict:
     # fetch existing events for involved orgs
     org_ids = list({e["org_id"] for e in events})
 
-    existing = (
-        db.table("events")
-        .select("id, title, start_datetime, end_datetime, org_id")
-        .in_("org_id", org_ids)
-        .execute()
-        .data
-    )
+    existing = []
+    for batch in chunked(org_ids, 200):
+        res = (
+            db.table("events")
+            .select("id, title, start_datetime, end_datetime, org_id")
+            .in_("org_id", batch)
+            .execute()
+            .data
+        )
+        existing.extend(res)
 
     existing_by_key = {}
     for row in existing:
         # reconstructs a minimal object to satisfy make_event_key
-        fake_soc = type("SOC", (), {
-            "course_num": row["title"].split()[0],
-            "lecture_section": row["title"].split()[1],
-            "semester": None,
-            "lecture_time_start": row["start_datetime"].strftime("%I:%M%p"),
-            "lecture_time_end": row["end_datetime"].strftime("%I:%M%p"),
-        })
+        fake_soc = type(
+            "SOC",
+            (),
+            {
+                "course_num": row["title"].split()[0],
+                "lecture_section": row["title"].split()[1],
+                "semester": None,
+                "lecture_time_start": row["start_datetime"].strftime("%I:%M%p"),
+                "lecture_time_end": row["end_datetime"].strftime("%I:%M%p"),
+            },
+        )
         existing_by_key[make_event_key(fake_soc)] = row["id"]
 
     # insert missing
@@ -49,22 +56,29 @@ def insert_events(db, events: list) -> dict:
         db.table("events").insert(rows_to_insert).execute()
 
     # refetch inserted ids
-    inserted = (
-        db.table("events")
-        .select("id, title, start_datetime, end_datetime, org_id")
-        .in_("org_id", org_ids)
-        .execute()
-        .data
-    )
+    inserted = []
+    for batch in chunked(org_ids, 200):
+        res = (
+            db.table("events")
+            .select("id, title, start_datetime, end_datetime, org_id")
+            .in_("org_id", batch)
+            .execute()
+            .data
+        )
+        inserted.extend(res)
 
     for row in inserted:
-        fake_soc = type("SOC", (), {
-            "course_num": row["title"].split()[0],
-            "lecture_section": row["title"].split()[1],
-            "semester": None,
-            "lecture_time_start": row["start_datetime"].strftime("%I:%M%p"),
-            "lecture_time_end": row["end_datetime"].strftime("%I:%M%p"),
-        })
+        fake_soc = type(
+            "SOC",
+            (),
+            {
+                "course_num": row["title"].split()[0],
+                "lecture_section": row["title"].split()[1],
+                "semester": None,
+                "lecture_time_start": row["start_datetime"].strftime("%I:%M%p"),
+                "lecture_time_end": row["end_datetime"].strftime("%I:%M%p"),
+            },
+        )
         event_id_by_key[make_event_key(fake_soc)] = row["id"]
 
     return event_id_by_key

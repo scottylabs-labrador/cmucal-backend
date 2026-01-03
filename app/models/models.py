@@ -70,6 +70,7 @@ class Organization(Base):
 class Course(Base):
     __tablename__ = 'courses'
     __table_args__ = (
+        UniqueConstraint("course_number", name="courses_course_number_key"),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='courses_org_id_fkey'),
         # PrimaryKeyConstraint('id', name='courses_pkey')
     )

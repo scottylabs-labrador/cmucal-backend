@@ -1,8 +1,8 @@
-from scraper.persistence.supabase_writer import get_supabase
+from scraper.persistence.supabase_writer import chunked
 
 
 def replace_recurrence_rules(db, rrules: list, event_id_by_key: dict):
-    """ Delete all existing rules for the event and insert the new ones """
+    """Delete all existing rules for the event and insert the new ones"""
 
     if not rrules:
         return
@@ -19,6 +19,7 @@ def replace_recurrence_rules(db, rrules: list, event_id_by_key: dict):
         row.pop("event_key")
         rows.append(row)
 
-    db.table("recurrence_rules").delete().in_("event_id", list(event_ids)).execute()
+    for batch in chunked(list(event_ids), 200):
+        db.table("recurrence_rules").delete().in_("event_id", batch).execute()
 
     db.table("recurrence_rules").insert(rows).execute()
