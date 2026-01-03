@@ -3,6 +3,7 @@
 from app.env import load_env
 ENV = load_env()
 
+
 from scraper.monitors.academic import ScheduleOfClassesScraper
 from scraper.persistence.supabase_categories import ensure_lecture_category
 from scraper.transforms.soc_org_course import build_orgs_and_courses

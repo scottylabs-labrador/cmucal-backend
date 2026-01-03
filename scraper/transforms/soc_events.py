@@ -1,50 +1,94 @@
+from collections import defaultdict
 import datetime
-from typing import List, Tuple
 
-from scraper.helpers.recurrence import build_rrule_from_soc, parse_soc_time
-from scraper.helpers.event import make_event_key
+from scraper.helpers.recurrence import parse_soc_time, build_rrule_from_parts
+from scraper.helpers.event import event_identity
 
+def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
+    from collections import defaultdict
+    import datetime
 
-def build_events_and_rrules(
-    soc_rows,
-    org_id_by_key: dict,
-    category_id_by_org: dict,
-) -> Tuple[List[dict], List[dict]]:
+    grouped = defaultdict(list)
+    for soc in soc_rows:
+        key = (
+            soc.course_num,
+            soc.lecture_section,
+            soc.semester,
+            soc.lecture_time_start,
+            soc.lecture_time_end,
+            soc.location,
+        )
+        grouped[key].append(soc)
+
+    print(f"Grouped {len(soc_rows)} SOC rows into {len(grouped)} event groups")
+
     events = []
     rrules = []
 
-    for soc in soc_rows:
-        key = (soc.course_num, soc.semester)
-        org_id = org_id_by_key[key]
+    for (
+        course_num,
+        lecture_section,
+        semester,
+        time_start,
+        time_end,
+        location,
+    ), rows in grouped.items():
+
+        soc0 = rows[0]
+
+        org_id = org_id_by_key[(course_num, semester)]
         category_id = category_id_by_org[org_id]
 
-        start_time = parse_soc_time(soc.lecture_time_start)
-        end_time = parse_soc_time(soc.lecture_time_end)
+        start_dt = datetime.datetime.combine(
+            soc0.sem_start,
+            parse_soc_time(time_start),
+        )
+        end_dt = datetime.datetime.combine(
+            soc0.sem_start,
+            parse_soc_time(time_end),
+        )
 
-        start_dt = datetime.datetime.combine(soc.sem_start, start_time)
-        end_dt = datetime.datetime.combine(soc.sem_start, end_time)
+        title = f"{course_num} {lecture_section}"
 
-        event_key = make_event_key(soc)
+        identity = event_identity(
+            org_id,
+            title,
+            semester,
+            start_dt,
+            end_dt,
+            location,
+        )
 
         event = {
-            "event_key": event_key,        # temporary identity
-            "title": f"{soc.course_num} {soc.lecture_section}",
+            "org_id": org_id,
+            "title": title,
+            "semester": semester,
             "start_datetime": start_dt,
             "end_datetime": end_dt,
+            "location": location,
             "is_all_day": False,
-            "location": soc.location,
-            "org_id": org_id,
             "category_id": category_id,
-            "description": f"{soc.course_num} {soc.lecture_section}",
+            "description": title,
             "event_type": "ACADEMIC",
             "source_url": "https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule",
+            "_identity": identity,  # runtime-only
         }
 
         events.append(event)
 
-        rrule = build_rrule_from_soc(soc)
+        all_days = set()
+        for soc in rows:
+            all_days.update(soc.lecture_days)
+
+        rrule = build_rrule_from_parts(
+            lecture_days="".join(sorted(all_days)),
+            sem_start=soc0.sem_start,
+            sem_end=soc0.sem_end,
+        )
+
         if rrule:
-            rrule["event_key"] = event_key
+            rrule["_identity"] = identity
             rrules.append(rrule)
 
+    assert len(events) == len(rrules)
     return events, rrules

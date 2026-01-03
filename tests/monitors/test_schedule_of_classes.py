@@ -10,7 +10,7 @@ def load_fixture(name: str) -> str:
 
 
 def parse_fixture(name: str):
-    scraper = ScheduleOfClassesScraper(db=None)
+    scraper = ScheduleOfClassesScraper(db=None, semester_label="Fall_26")
     html = load_fixture(name)
     fixed_html = scraper._fix_malformed_html(html)
     return scraper._parse_html(fixed_html)

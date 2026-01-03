@@ -274,6 +274,15 @@ class Event(Base):
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='events_category_id_fkey'),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='events_org_id_fkey'),
         # PrimaryKeyConstraint('id', name='events_pkey')
+        UniqueConstraint(
+            "org_id",
+            "title",
+            "semester",
+            "start_datetime",
+            "end_datetime",
+            "location",
+            name="events_unique_soc",
+        )
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -283,6 +292,8 @@ class Event(Base):
     end_datetime: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     is_all_day: Mapped[bool] = mapped_column(Boolean)
     location: Mapped[str] = mapped_column(Text)
+    # Can be UNKOWN but not null
+    semester: Mapped[str] = mapped_column(Text)
     user_edited: Mapped[Optional[list]] = mapped_column(ARRAY(BigInteger()))
     org_id: Mapped[int] = mapped_column(BigInteger)
     category_id: Mapped[int] = mapped_column(BigInteger)

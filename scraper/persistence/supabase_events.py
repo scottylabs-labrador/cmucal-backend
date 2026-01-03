@@ -1,84 +1,34 @@
-from scraper.persistence.supabase_writer import chunked, get_supabase
-from scraper.helpers.event import make_event_key
+from scraper.persistence.supabase_writer import chunked
+from scraper.helpers.event import clean_row_for_insert, event_identity
 
-
-def insert_events(db, events: list) -> dict:
+def insert_events(db, events):
     """
-    Inserts events if they do not already exist.
-    Returns mapping: event_key -> event_id
+    Returns:
+        {event_identity: event_id}
     """
 
-    # fetch existing events for involved orgs
-    org_ids = list({e["org_id"] for e in events})
-
-    existing = []
-    for batch in chunked(org_ids, 200):
-        res = (
-            db.table("events")
-            .select("id, title, start_datetime, end_datetime, org_id")
-            .in_("org_id", batch)
-            .execute()
-            .data
-        )
-        existing.extend(res)
-
-    existing_by_key = {}
-    for row in existing:
-        # reconstructs a minimal object to satisfy make_event_key
-        fake_soc = type(
-            "SOC",
-            (),
-            {
-                "course_num": row["title"].split()[0],
-                "lecture_section": row["title"].split()[1],
-                "semester": None,
-                "lecture_time_start": row["start_datetime"].strftime("%I:%M%p"),
-                "lecture_time_end": row["end_datetime"].strftime("%I:%M%p"),
-            },
-        )
-        existing_by_key[make_event_key(fake_soc)] = row["id"]
-
-    # insert missing
-    rows_to_insert = []
-    event_id_by_key = {}
+    identity_by_row = []
+    rows = []
 
     for e in events:
-        key = e["event_key"]
+        identity_by_row.append(e["_identity"])
+        rows.append(clean_row_for_insert({k: v for k, v in e.items() if k != "_identity"}))
 
-        if key in existing_by_key:
-            event_id_by_key[key] = existing_by_key[key]
-        else:
-            row = dict(e)
-            row.pop("event_key")
-            rows_to_insert.append(row)
+    event_id_by_identity = {}
 
-    if rows_to_insert:
-        db.table("events").insert(rows_to_insert).execute()
-
-    # refetch inserted ids
-    inserted = []
-    for batch in chunked(org_ids, 200):
+    for batch, id_batch in zip(chunked(rows, 200), chunked(identity_by_row, 200)):
         res = (
             db.table("events")
-            .select("id, title, start_datetime, end_datetime, org_id")
-            .in_("org_id", batch)
+            .upsert(
+                batch,
+                on_conflict="org_id,title,semester,start_datetime,end_datetime,location",
+                returning="representation",
+            )
             .execute()
-            .data
         )
-        inserted.extend(res)
 
-    for row in inserted:
-        fake_soc = type(
-            "SOC",
-            (),
-            {
-                "course_num": row["title"].split()[0],
-                "lecture_section": row["title"].split()[1],
-                "semester": None,
-                "lecture_time_start": row["start_datetime"].strftime("%I:%M%p"),
-                "lecture_time_end": row["end_datetime"].strftime("%I:%M%p"),
-            },
-        )
-        event_id_by_key[make_event_key(fake_soc)] = row["id"]
+        for row, identity in zip(res.data, id_batch):
+            event_id_by_identity[identity] = row["id"]
 
-    return event_id_by_key
+    # print(f"Inserted/updated {len(event_id_by_identity)} events")
+    return event_id_by_identity

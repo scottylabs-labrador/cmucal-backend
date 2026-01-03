@@ -1,23 +1,37 @@
 from scraper.persistence.supabase_writer import chunked
+from scraper.helpers.event import clean_row_for_insert, event_identity
 
-
-def replace_recurrence_rules(db, rrules: list, event_id_by_key: dict):
-    """Delete all existing rules for the event and insert the new ones"""
-
-    if not rrules:
-        return
-
+def replace_recurrence_rules(db, rrules, event_id_by_identity):
     rows = []
     event_ids = set()
 
     for r in rrules:
-        event_id = event_id_by_key[r["event_key"]]
+        identity = r["_identity"]
+
+        if identity not in event_id_by_identity:
+            raise RuntimeError(f"ORPHAN RRULE: {identity}")
+
+        (
+            _org_id,
+            _title,
+            _semester,
+            start_dt,
+            _end_dt,
+            _location,
+        ) = identity
+
+        event_id = event_id_by_identity[identity]
         event_ids.add(event_id)
 
-        row = dict(r)
-        row["event_id"] = event_id
-        row.pop("event_key")
-        rows.append(row)
+        row = {
+            **r,
+            "event_id": event_id,
+            "start_datetime": start_dt,
+        }
+
+        row.pop("_identity")
+
+        rows.append(clean_row_for_insert(row))
 
     for batch in chunked(list(event_ids), 200):
         db.table("recurrence_rules").delete().in_("event_id", batch).execute()
