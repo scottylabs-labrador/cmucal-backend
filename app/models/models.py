@@ -70,17 +70,22 @@ class Organization(Base):
 class Course(Base):
     __tablename__ = 'courses'
     __table_args__ = (
+        UniqueConstraint("course_number", name="courses_course_number_key"),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='courses_org_id_fkey'),
         # PrimaryKeyConstraint('id', name='courses_pkey')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
     course_number: Mapped[str] = mapped_column(Text)
+    course_name: Mapped[str] = mapped_column(Text)
     org_id: Mapped[int] = mapped_column(BigInteger)
+    semesters: Mapped[Optional[list]] = mapped_column(ARRAY(Text()))
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'))
 
     org: Mapped['Organization'] = relationship('Organization', back_populates='courses')
     course_crosslist: Mapped[List['CourseCrosslist']] = relationship('CourseCrosslist', back_populates='course')
+
+
 
 class CourseCrosslist(Base):
     __tablename__ = 'course_crosslist'
@@ -269,6 +274,15 @@ class Event(Base):
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='events_category_id_fkey'),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='events_org_id_fkey'),
         # PrimaryKeyConstraint('id', name='events_pkey')
+        UniqueConstraint(
+            "org_id",
+            "title",
+            "semester",
+            "start_datetime",
+            "end_datetime",
+            "location",
+            name="events_unique_soc",
+        )
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -278,6 +292,8 @@ class Event(Base):
     end_datetime: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     is_all_day: Mapped[bool] = mapped_column(Boolean)
     location: Mapped[str] = mapped_column(Text)
+    # Can be UNKOWN but not null
+    semester: Mapped[str] = mapped_column(Text)
     user_edited: Mapped[Optional[list]] = mapped_column(ARRAY(BigInteger()))
     org_id: Mapped[int] = mapped_column(BigInteger)
     category_id: Mapped[int] = mapped_column(BigInteger)
@@ -409,6 +425,7 @@ class RecurrenceRule(Base):
     by_month_day: Mapped[Optional[list]] = mapped_column(SmallInteger)
     by_day: Mapped[Optional[list]] = mapped_column(ARRAY(Text()))
     orig_until: Mapped[Optional[datetime.date]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_generated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     event: Mapped['Event'] = relationship('Event', back_populates='recurrence_rules')
     event_overrides: Mapped[List['EventOverride']] = relationship('EventOverride', back_populates='rrule')

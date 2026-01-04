@@ -263,5 +263,46 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
 
         count += 1
 
+    # Mark successful regeneration
+    now = datetime.now(timezone.utc)
+    rule.last_generated_at = now
+    event.last_updated_at = now
+
     db.flush()
     return f"Populated {count} occurrences for event {event.id}"
+
+def regenerate_event_occurrences_by_event_ids(db, event_ids: List[int]) -> Dict[int, str]:
+    """
+    Regenerate occurrences for a list of event IDs.
+
+    Args:
+        db: Database session.
+        event_ids: List of event IDs to regenerate occurrences for.
+    Returns:
+        number of occurrences regenerated, skipped
+    """
+    regenerated = 0
+    skipped = 0
+    start = datetime.now(timezone.utc)
+    for event_id in event_ids:
+        event = db.query(Event).get(event_id)
+        if not event:
+            skipped += 1
+            continue
+
+        rule = db.query(RecurrenceRule).filter_by(event_id=event.id).first()
+        if not rule:
+            skipped += 1
+            continue
+
+        if rule.last_generated_at and rule.last_generated_at > event.last_updated_at:
+            continue
+
+
+        populate_event_occurrences(db, event, rule)
+        regenerated += 1
+    end = datetime.now(timezone.utc)
+    # total minutes
+    total_time = (end - start).total_seconds() / 60
+    print(f"Regenerated occurrences for {regenerated} events, skipped {skipped} events in {total_time} minutes.")
+    return regenerated, skipped

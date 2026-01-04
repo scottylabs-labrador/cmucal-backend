@@ -1,11 +1,26 @@
 # Updated README
-1. `cd scraper`
+<!-- 1. `cd scraper`
 2. Run:
 `python exporters/handshake_export_to_excel.py`
 `python exporters/tartanconnect_export_to_excel.py`
 `python exporters/si_export_to_excel.py`
 `python exporters/peer_tutoring_export_to_excel.py`
-`python exporters/schedule_of_classes_export_to_excel.py`
+`python exporters/schedule_of_classes_export_to_excel.py` -->
+## Development Environment
+1. Activate the virtual environment at the root directory
+2. If running the schedule of classes scraper, make sure to change the semester_label in `scraper = ScheduleOfClassesScraper(db, semester_label="Spring_26")`. 
+    - Acceptable formats include `Spring_xx`, `Fall_xx`, `Summer1_xx`, `Summer2_xx`.
+    - Feel free to change the start and end dates of each semester in `scraper/helpers/semester.py` if needed.
+3. Run:
+`python -m scraper.scripts.export_soc`
+
+## Production Environment
+- substitute with the correct admin token and run the following code in the terminal.
+```
+curl -X POST https://api.cal.scottylabs.org/api/admin/export_soc \
+  -H "X-Admin-Token: ADMIN_TOKEN"
+
+```
 
 # Old README
 

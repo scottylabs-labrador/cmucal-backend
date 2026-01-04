@@ -24,6 +24,7 @@ dependencies = [
     "alembic",
     "psycopg2-binary",
     "pymongo",
+    "supabase",
 
     # Auth / security
     "bcrypt",
