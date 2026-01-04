@@ -15,12 +15,7 @@
 `python -m scraper.scripts.export_soc`
 
 ## Production Environment
-- substitute with the correct admin token and run the following code in the terminal.
-```
-curl -X POST https://api.cal.scottylabs.org/api/admin/export_soc \
-  -H "X-Admin-Token: ADMIN_TOKEN"
-
-```
+- created a cron job on Railway that calls `python -m scraper.scripts.export_soc`
 
 # Old README
 
