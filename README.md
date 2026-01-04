@@ -21,7 +21,7 @@ venv/
 
 - Once activated, you can install dependencies by
     - dev environment: `pip install -e ".[dev]"`
-    - production environment: `pip install -e .`
+    - production environment: `pip install .`
 
 <!-- - Once activated, you can install dependencies by `pip install -r requirements.txt`, `pip install -e .`, and save them by running `pip freeze > requirements.txt` -->
 - If you encounter an error with psycogp2, run `brew install postgresql` first.
