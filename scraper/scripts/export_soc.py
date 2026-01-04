@@ -15,6 +15,19 @@ from scraper.transforms.soc_events import build_events_and_rrules
 from scraper.persistence.supabase_events import insert_events
 from scraper.persistence.supabase_recurrence import replace_recurrence_rules
 
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
+
+def export_soc_safe():
+    try:
+        logger.info("🚀 SOC export started")
+        export_soc()
+        logger.info("✅ SOC export finished successfully")
+    except Exception:
+        logger.error("❌ export_soc failed")
+        logger.error(traceback.format_exc())
 
 def export_soc():
     """ Scrape the Schedule of Classes and export to Supabase 
@@ -47,12 +60,15 @@ def export_soc():
     affected_event_ids = list(event_id_by_identity.values())
     # Trigger ORM-based regeneration
     if affected_event_ids:
-        requests.post(
-            f"{API_BASE_URL}/events/regenerate_occurrences_by_events",
-            json={"event_ids": affected_event_ids},
-            timeout=5,
-        )
-        print(f"If you see errors here, make sure to start the Flask server before running this script. Timeout errors can be ignored.")
+        try:
+            requests.post(
+                f"{API_BASE_URL}/events/regenerate_occurrences_by_events",
+                json={"event_ids": affected_event_ids},
+                timeout=5,
+            )
+        except requests.exceptions.Timeout:
+            pass  # regeneration continues server-side
+        # print(f"If you see errors here, make sure to start the Flask server before running this script. Timeout errors can be ignored.")
         
     print(f"✅ Called regeneration for {len(affected_event_ids)} events. See logs for details.")
 

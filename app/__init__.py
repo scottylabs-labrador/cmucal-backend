@@ -7,6 +7,13 @@ from app.services.db import get_session
 from app.env import load_env
 ENV = load_env()
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 from app.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from app.services.db import init_db
 
@@ -44,6 +51,7 @@ def create_app():
         from app.api.google import google_bp
         from app.api.events import events_bp
         from app.api.schedule import schedule_bp
+        from app.api.admin import admin_bp
         from app.cli import import_courses_command
 
         origins = [o.strip() for o in os.getenv(
@@ -64,6 +72,7 @@ def create_app():
         app.register_blueprint(google_bp, url_prefix="/api/google")
         app.register_blueprint(events_bp, url_prefix="/api/events")
         app.register_blueprint(schedule_bp, url_prefix="/api/schedule")
+        app.register_blueprint(admin_bp, url_prefix="/api/admin")
         app.register_blueprint(base_bp)
         
         # Register CLI command
