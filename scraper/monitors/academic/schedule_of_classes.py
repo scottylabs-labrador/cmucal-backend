@@ -144,7 +144,7 @@ class ScheduleOfClassesScraper(BaseScraper):
                     cols, last_course_num, last_course_name, self.semester_label, resources
                 )
 
-        print(f"Scraper found {len(resources)} courses.")
+        print(f"Scraper found {len(resources)} lecture and recitation sessions.")
         return resources
 
     def _process_row_columns(

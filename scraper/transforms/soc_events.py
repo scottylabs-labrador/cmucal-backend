@@ -1,26 +1,12 @@
-from collections import defaultdict
-import datetime
-
 from scraper.helpers.recurrence import parse_soc_time, build_rrule_from_parts
-from scraper.helpers.event import event_identity
+from scraper.helpers.event import event_identity, group_soc_rows
 
 def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
     from collections import defaultdict
     import datetime
 
-    grouped = defaultdict(list)
-    for soc in soc_rows:
-        key = (
-            soc.course_num,
-            soc.lecture_section,
-            soc.semester,
-            soc.lecture_time_start,
-            soc.lecture_time_end,
-            soc.location,
-        )
-        grouped[key].append(soc)
-
-    print(f"Grouped {len(soc_rows)} SOC rows into {len(grouped)} event groups")
+    # Group SOC rows into events
+    grouped = group_soc_rows(soc_rows)
 
     events = []
     rrules = []
