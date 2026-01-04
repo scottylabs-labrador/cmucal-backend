@@ -38,6 +38,7 @@ def create_event_record():
         end_datetime = data.get("end_datetime")
         is_all_day = data.get("is_all_day", False)
         location = data.get("location", None)
+        semester = data.get("semester", None)
         source_url = data.get("source_url", None)
         event_type= data.get("event_type", None)
         user_edited = data.get("user_edited", [])
@@ -67,6 +68,7 @@ def create_event_record():
                             end_datetime=end_datetime,
                             is_all_day=is_all_day,
                             location=location,
+                            semester=semester,
                             source_url=source_url,
                             event_type=event_type,
                             user_edited=user_edited)
@@ -160,6 +162,7 @@ def read_gcal_link():
         org_id = data.get("org_id")
         category_id = data.get("category_id")
         clerk_id = data.get("clerk_id", None)
+        semester = data.get("semester", None)
 
         if not gcal_link:
             return jsonify({"error": "Missing gcal_link"}), 400
@@ -172,8 +175,9 @@ def read_gcal_link():
             ical_text_or_url=gcal_link,
             org_id=org_id,
             category_id=category_id,
+            semester=semester,
             default_event_type=event_type,
-            user_id=user.id
+            user_id=user.id,
         )
         print(ics_message)
         # Handle parse-level failure

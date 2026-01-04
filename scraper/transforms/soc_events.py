@@ -49,6 +49,7 @@ def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
         )
 
         title = f"{course_num} {lecture_section}"
+        description = f"{soc0.course_name} :: {course_num} {lecture_section}"
 
         identity = event_identity(
             org_id,
@@ -68,7 +69,7 @@ def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
             "location": location,
             "is_all_day": False,
             "category_id": category_id,
-            "description": title,
+            "description": description,
             "event_type": "ACADEMIC",
             "source_url": "https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule",
             "_identity": identity,  # runtime-only

@@ -29,16 +29,6 @@ def group_soc_rows(soc_rows):
 
     return grouped
 
-
-# def event_identity(e):
-#     return (
-#         e["org_id"],
-#         e["title"],
-#         e["semester"],
-#         normalize_dt(e["start_datetime"]),
-#         normalize_dt(e["end_datetime"]),
-#     )
-
 def event_identity(org_id, title, semester, start_datetime, end_datetime, location):
     return (
         org_id,
@@ -48,9 +38,6 @@ def event_identity(org_id, title, semester, start_datetime, end_datetime, locati
         normalize_dt(end_datetime),
         normalize_str(location),
     )
-
-
-
 
 def json_safe(value):
     if isinstance(value, (datetime, date)):

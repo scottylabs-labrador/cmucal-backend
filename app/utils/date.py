@@ -105,3 +105,14 @@ def _parse_iso_aware(s: str = None):
 
 def convert_to_iso8601(dt_str):
     return datetime.strptime(dt_str, "%a, %d %b %Y %H:%M:%S %Z").isoformat() + "Z"
+
+def infer_semester_from_datetime(dt: datetime) -> str:
+    year = dt.year
+    month = dt.month
+
+    if month <= 5:
+        return f"Spring_{str(year)[-2:]}"
+    elif month <= 8:
+        return f"Summer_{str(year)[-2:]}"
+    else:
+        return f"Fall_{str(year)[-2:]}"

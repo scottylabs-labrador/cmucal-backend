@@ -36,18 +36,11 @@ def build_rrule_from_parts(
 
     until_dt = datetime.combine(sem_end, time.max)
 
-    # # ---- DTSTART ----
-    # # ignore this part because we already have start_dt in the event
-    # start_dt = datetime.combine(
-    #     sem_start,
-    #     parse_soc_time(soc.lecture_time_start),
-    # )
-
+    # Note that start date is not included here; it is handled elsewhere
     return {
         "frequency": FrequencyType.WEEKLY,
         "interval": 1,
         "by_day": by_day,
-        # "start_datetime": start_dt,
         "until": until_dt,
         "count": None,
         "by_month": None,
