@@ -8,11 +8,11 @@ from app.models.club import save_club
 from app.models.tag import get_tag_by_name, save_tag, get_all_tags
 from app.models.event_tag import save_event_tag, get_tags_by_event, delete_event_tag
 from app.models.recurrence_rule import add_recurrence_rule
-from app.models.event_occurrence import populate_event_occurrences, save_event_occurrence
+from app.models.event_occurrence import populate_event_occurrences, regenerate_event_occurrences_by_event_ids, save_event_occurrence
 from app.models.category import category_to_dict, get_category_by_id
-from app.models.models import CalendarSource, CategoryIcal, Event, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
+from app.models.models import CalendarSource, CategoryIcal, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
 import pprint
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import cast, Date, or_
 
 from app.services.ical import import_ical_feed_using_helpers
@@ -331,6 +331,34 @@ def create_single_event_occurrence():
         print("❌ Exception:", traceback.format_exc())
         return jsonify({"error": str(e)}), 500
         
+
+
+@events_bp.route("/regenerate_occurrences_by_events", methods=["POST"])
+def regenerate_occurrences_by_events():
+    db = g.db
+    try:
+        data = request.get_json()
+        event_ids = data.get("event_ids")
+
+        if not event_ids:
+            return jsonify({"error": "Missing event_ids"}), 400
+
+        regenerated, skipped = regenerate_event_occurrences_by_event_ids(db, event_ids)
+
+        db.commit()
+
+        return jsonify({
+                "status": "ok",
+                "regenerated_events": regenerated,
+                "skipped_events": skipped
+            }), 201
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @events_bp.route("/tags", methods=["GET"])
 def get_tags():
     # print("🙇 geting tags 🙇")
@@ -534,6 +562,8 @@ def update_event(event_id):
 
         # TODO: update recurrence table
 
+        # update event last_updated_at
+        event.last_updated_at = datetime.now(timezone.utc)
         db.commit()
 
         event_dict = event.as_dict()

@@ -20,3 +20,9 @@ def load_env():
     dotfile = f".env.{ENV}"
     load_dotenv(dotfile)
     return ENV
+
+def get_api_base_url() -> str:
+    url = os.getenv("API_BASE_URL")
+    if not url:
+        raise RuntimeError("API_BASE_URL is not set")
+    return url.rstrip("/")

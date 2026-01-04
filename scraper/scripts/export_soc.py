@@ -1,8 +1,9 @@
 # scraper/scripts/export_soc.py
 
-from app.env import load_env
+import requests
+from app.env import load_env, get_api_base_url
 ENV = load_env()
-
+API_BASE_URL = get_api_base_url()
 
 from scraper.monitors.academic import ScheduleOfClassesScraper
 from scraper.persistence.supabase_categories import ensure_lecture_category
@@ -38,10 +39,22 @@ def export_soc():
 
     # events + recurrence rules
     events, rrules = build_events_and_rrules(resources, org_id_by_key, category_id_by_org)
-    event_id_by_key = insert_events(db, events)
-    replace_recurrence_rules(db, rrules, event_id_by_key)
+    event_id_by_identity = insert_events(db, events)
+    replace_recurrence_rules(db, rrules, event_id_by_identity)
     print(f"✅ {len(events)} events and {len(rrules)} recurrence rules")
 
+    print(f"...Regenerating occurrences via {API_BASE_URL}")
+    affected_event_ids = list(event_id_by_identity.values())
+    # Trigger ORM-based regeneration
+    if affected_event_ids:
+        requests.post(
+            f"{API_BASE_URL}/events/regenerate_occurrences_by_events",
+            json={"event_ids": affected_event_ids},
+            timeout=5,
+        )
+        print(f"If you see errors here, make sure to start the Flask server before running this script. Timeout errors can be ignored.")
+        
+    print(f"✅ Called regeneration for {len(affected_event_ids)} events. See logs for details.")
 
 if __name__ == "__main__":
     export_soc()

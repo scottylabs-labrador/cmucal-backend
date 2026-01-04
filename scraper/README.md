@@ -6,8 +6,11 @@
 `python exporters/si_export_to_excel.py`
 `python exporters/peer_tutoring_export_to_excel.py`
 `python exporters/schedule_of_classes_export_to_excel.py` -->
-1. activate the virtual environment at the root directory
-2. Run:
+1. Activate the virtual environment at the root directory
+2. If running the schedule of classes scraper, make sure to change the semester_label in `scraper = ScheduleOfClassesScraper(db, semester_label="Spring_26")`. 
+    - Acceptable formats include `Spring_xx`, `Fall_xx`, `Summer1_xx`, `Summer2_xx`.
+    - Feel free to change the start and end dates of each semester in `scraper/helpers/semester.py` if needed.
+3. Run:
 `python -m scraper.scripts.export_soc`
 
 # Old README
