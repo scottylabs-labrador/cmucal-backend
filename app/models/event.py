@@ -5,6 +5,7 @@ from app.models.models import Event
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 import requests
+from app.utils.date import infer_semester_from_datetime
 from app.models.models import Event, RecurrenceRule, EventOccurrence, RecurrenceRdate, RecurrenceExdate, EventOverride
 
 ### need to check type of start_datetime, end_datetime before using them
@@ -28,6 +29,9 @@ def save_event(db, org_id: int, category_id: int, title: str, start_datetime: st
     Returns:
         The created Event object.
     """
+    if semester is None:
+        semester = infer_semester_from_datetime(start_datetime)
+        
     event = Event(
         org_id=org_id,
         category_id=category_id,

@@ -106,7 +106,14 @@ def _parse_iso_aware(s: str = None):
 def convert_to_iso8601(dt_str):
     return datetime.strptime(dt_str, "%a, %d %b %Y %H:%M:%S %Z").isoformat() + "Z"
 
-def infer_semester_from_datetime(dt: datetime) -> str:
+def infer_semester_from_datetime(dt: datetime | str) -> str:
+    if isinstance(dt, str):
+        # Handles "2026-01-05T05:00:00.000Z"
+        dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+    # Ensure timezone-aware UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
     year = dt.year
     month = dt.month
 
