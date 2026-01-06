@@ -1,9 +1,10 @@
 import datetime as dt
+import re
+
 import bs4
 import requests
-import urllib3  # <-- 1. Import urllib3 to suppress warnings
+
 from scraper.monitors.base_scraper import BaseScraper
-import re
 from scraper.models import SupplementalInstruction
 
 
@@ -16,9 +17,10 @@ class SupplementalInstructionScraper(BaseScraper):
 
     def scrape(self):
         supplemental_instruction_events = self.scrape_data_only()
+        #TODO: Store in database
     
 
-    def scrape_data_only(self):
+    def scrape_data_only(self) -> list[SupplementalInstruction]:
         si_url = "https://www.cmu.edu/student-success/programs/supp-inst.html"
         si_html = requests.get(si_url).content
 
@@ -66,6 +68,8 @@ class SupplementalInstructionScraper(BaseScraper):
             
             all_supp_instr_events.append(event)
             print(f"{course_num} {course_name}: {len(time_locations)} session(s)")
+
+        return all_supp_instr_events
 
     def _generate_time_location(self, time_location_string) -> dict:
         """Generate a time location dictionary from a string.
