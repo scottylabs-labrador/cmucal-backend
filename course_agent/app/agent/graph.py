@@ -1,11 +1,11 @@
 # course-agent/app/agent/graph.py
 from langgraph.graph import StateGraph, END
-from app.agent.state import CourseAgentState
-from app.agent.nodes.search import search_node
-from app.agent.nodes.verify_site import verify_site_node
-from app.agent.nodes.critic import critic_node
-from app.agent.nodes.extract_calendar import extract_calendar_node
-from app.agent.router import route_after_verify, route_after_critic
+from course_agent.app.agent.state import CourseAgentState
+from course_agent.app.agent.nodes.search import search_node
+from course_agent.app.agent.nodes.verify_site import verify_site_node
+from course_agent.app.agent.nodes.critic import critic_node
+from course_agent.app.agent.nodes.extract_calendar import extract_calendar_node
+from course_agent.app.agent.router import route_after_verify, route_after_critic
 
 def build_course_agent():
     graph = StateGraph(CourseAgentState)

@@ -1,5 +1,5 @@
 # course-agent/app/agent/router.py
-from app.agent.state import CourseAgentState
+from course_agent.app.agent.state import CourseAgentState
 
 def route_after_verify(state: CourseAgentState):
     if state.get("proposed_site_id"):
@@ -14,4 +14,3 @@ def route_after_critic(state: CourseAgentState):
     if state.get("done"):
         return "end"
     return "verify_site"
-

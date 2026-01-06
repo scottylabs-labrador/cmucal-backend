@@ -1,10 +1,9 @@
 # course-agent/app/agent/nodes/critic.py
-from app.services.html_fetcher import fetch_html
-from app.services.llm import llm
-from app.agent.prompts import CRITIC_PROMPT
-from app.db.repositories import verify_course_website
-from app.agent.state import CourseAgentState
-from app.agent.scores import CRITIC_SCORES
+from course_agent.app.services.llm import get_llm
+from course_agent.app.agent.prompts import CRITIC_PROMPT
+from course_agent.app.db.repositories import verify_course_website
+from course_agent.app.agent.state import CourseAgentState
+from course_agent.app.agent.scores import CRITIC_SCORES
 
 def critic_node(state: CourseAgentState):
     website_id = state.get("proposed_site_id")
@@ -17,7 +16,7 @@ def critic_node(state: CourseAgentState):
     snippet = html[:1500]
 
     formatted_course_name = f"{state['course_number'][0:2]}-{state['course_number'][2:4]} {state['course_name']}"
-
+    llm = get_llm()
     decision = llm.invoke(
         CRITIC_PROMPT.format(
             course_name=formatted_course_name,
@@ -42,16 +41,19 @@ def critic_node(state: CourseAgentState):
         )
         return {
             **state,
+            "critic_decision": decision,
             "verified_site_id": website_id,
             "verified_site_url": url,
             "verified_site_html": html,
             "critic_score": critic_score,
-            "final_score": final_score
+            "final_score": final_score,
+            "terminal_status": "success"
         }
 
     # reject path
     return {
         **state,
+        "critic_decision": decision,
         "critic_score": critic_score,
         "final_score": final_score,
         "current_url_index": state["current_url_index"] + 1,

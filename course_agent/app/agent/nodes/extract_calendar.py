@@ -1,22 +1,58 @@
 # course-agent/app/agent/nodes/extract_calendar.py
-from app.services.html_fetcher import fetch_html
-from app.services.iframe_scanner import find_google_calendar_iframe
-from app.db.repositories import insert_calendar
-from app.agent.state import CourseAgentState
+from course_agent.app.services.iframe_scanner import find_google_calendar_iframe, derive_ical_link
+# from course_agent.app.db.repositories import insert_calendar
+from course_agent.app.agent.state import CourseAgentState
+from course_agent.app.db.repositories import upsert_calendar_source
 
 def extract_calendar_node(state: CourseAgentState):
     html = state.get("verified_site_html")
-    website_id = state.get("verified_site_id")
+    org_id = state.get("org_id")
+    category_id = state.get('category_id')
 
-    if not html or not website_id:
-        return {**state, "done": True}
+    if not html or not org_id or not category_id:
+        return {
+            **state,
+            "terminal_status": "no_site_found",
+            "done": True,
+        }
 
     iframe_url = find_google_calendar_iframe(html)
 
-    insert_calendar(website_id, iframe_url)
+    if not iframe_url:
+        return {
+            **state,
+            "terminal_status": "no_calendar",
+            "done": True,
+        }
+
+    ical_link = derive_ical_link(iframe_url)
+    if not ical_link:
+        return {
+            **state,
+            'terminal_status': 'no_calendar',
+            'done': True,
+        }
+    
+    # skip DB writes if already seen this ical_link
+    if state.get('ical_link') == ical_link:
+        return {
+            **state,
+            'terminal_status': 'success',
+            'done': True,
+        }
+
+    upsert_calendar_source(
+        org_id=org_id,
+        category_id=state['category_id'],
+        url=ical_link,
+        notes='Detected from course website iframe',
+        default_event_type=state.get('event_type'),
+    )
 
     return {
         **state,
         "calendar_url": iframe_url,
-        "done": True
+        "ical_link": ical_link,
+        "terminal_status": "success",
+        "done": True,
     }

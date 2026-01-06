@@ -1,11 +1,15 @@
 # course-agent/app/agent/nodes/search.py
-from app.services.search import search_course_site
-from app.agent.state import CourseAgentState
+from course_agent.app.services.search import get_search_course_site
+from course_agent.app.agent.state import CourseAgentState
 
 def search_node(state: CourseAgentState):
-    urls = search_course_site(state["course_name"])
+    search = get_search_course_site()
+    urls = search(
+        f"{state['course_number']} {state['course_name']}",
+        max_results=3,
+    )
     return {
         **state,
         "candidate_urls": urls,
-        "current_url_index": 0
+        "current_url_index": 0,
     }
