@@ -309,10 +309,10 @@ class Event(Base):
 
     category: Mapped['Category'] = relationship('Category', back_populates='events')
     org: Mapped['Organization'] = relationship('Organization', back_populates='events')
-    event_occurrences: Mapped[List['EventOccurrence']] = relationship('EventOccurrence', back_populates='event')
-    event_tags: Mapped[List['EventTag']] = relationship('EventTag', back_populates='event')
-    recurrence_rules: Mapped[List['RecurrenceRule']] = relationship('RecurrenceRule', back_populates='event')
-    user_saved_events: Mapped[List['UserSavedEvent']] = relationship('UserSavedEvent', back_populates='event')
+    event_occurrences: Mapped[List['EventOccurrence']] = relationship('EventOccurrence', back_populates='event', passive_deletes=True)
+    event_tags: Mapped[List['EventTag']] = relationship('EventTag', back_populates='event', passive_deletes=True)
+    recurrence_rules: Mapped[List['RecurrenceRule']] = relationship('RecurrenceRule', back_populates='event', passive_deletes=True)
+    user_saved_events: Mapped[List['UserSavedEvent']] = relationship('UserSavedEvent', back_populates='event', passive_deletes=True)
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}

@@ -1,5 +1,6 @@
 from scraper.helpers.recurrence import parse_soc_time, build_rrule_from_parts
 from scraper.helpers.event import event_identity, group_soc_rows
+from scraper.helpers.timezone import timezone_from_location
 
 def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
     from collections import defaultdict
@@ -24,14 +25,17 @@ def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
 
         org_id = org_id_by_key[(course_num, semester)]
         category_id = category_id_by_org[org_id]
+        tz = timezone_from_location(location)
 
         start_dt = datetime.datetime.combine(
             soc0.sem_start,
             parse_soc_time(time_start),
+            tzinfo=tz,
         )
         end_dt = datetime.datetime.combine(
             soc0.sem_start,
             parse_soc_time(time_end),
+            tzinfo=tz,
         )
 
         title = f"{course_num} {lecture_section}"

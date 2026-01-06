@@ -481,6 +481,68 @@ def get_all_events():
         print("❌ Exception:", traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
+@events_bp.route("/batch_delete_events_by_params", methods=["DELETE"])
+def batch_delete_events_by_params():
+    """
+    Deletes Events AND all dependent rows:
+    - EventOccurrence
+    - RecurrenceRule (+ overrides, rdates, exdates)
+    - EventTag
+    - Academic / Career / Club
+    - UserSavedEvent
+    
+    Parameters can include semester, org_id, category_id, event_type, source_url.
+    Note that SOC events are identified by source_url: 'https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule'
+    """
+    db = g.db
+    try:
+        data = request.get_json()
+        semester = data.get("semester", None)
+        org_id = data.get("org_id", None)
+        category_id = data.get("category_id", None)
+        event_type = data.get("event_type", None)
+        source_url = data.get("source_url", None)
+        print(f"called batch_delete_events_by_params:\n semester={semester}, org_id={org_id}, category_id={category_id}, event_type={event_type}, source_url={source_url}")
+
+        if not any([org_id, category_id, semester, event_type, source_url]):
+            return jsonify({"error": "At least one filter must be provided"}), 400
+
+        query = db.query(Event)
+
+        if org_id:
+            query = query.filter(Event.org_id == org_id)
+        if category_id:
+            query = query.filter(Event.category_id == category_id)
+        if semester:
+            query = query.filter(Event.semester == semester)
+        if event_type:
+            query = query.filter(Event.event_type == event_type)
+        if source_url:
+            query = query.filter(Event.source_url == source_url)
+
+        events = query.all()
+
+        if not events:
+            return jsonify({"status": "no events matched"}), 200
+
+        deleted_ids = [e.id for e in events]
+
+        for event in events:
+            db.delete(event)
+
+        db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "deleted_events": len(deleted_ids),
+            "event_ids": deleted_ids,
+        }), 200
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
 @events_bp.route("/<event_id>", methods=["GET"])
 def get_specific_events(event_id):
     print("🍎🍎🍎🍎", request.url)
