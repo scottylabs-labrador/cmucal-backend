@@ -48,8 +48,25 @@ def db(engine):
         transaction.rollback()
         connection.close()
 
+# ---------- Forbid real LLM calls ----------
+@pytest.fixture(autouse=True)
+def forbid_real_llm_calls(mocker):
+    mocker.patch(
+        'course_agent.app.services.llm.get_llm',
+        side_effect=AssertionError('LLM accessed without mock')
+    )
+
+# ---------- Forbid real Search API calls ----------
+@pytest.fixture(autouse=True)
+def forbid_real_search_calls(mocker):
+    mocker.patch(
+        'course_agent.app.services.search.get_search_course_site',
+        side_effect=AssertionError('Search API accessed without mock')
+    )
 
 # ---------- FACTORY FIXTURES ----------
 from tests.factories.user_factory import *
 from tests.factories.org_factory import *
 from tests.factories.admin_factory import *
+from tests.factories.course_factory import *
+from tests.factories.course_agent_state_factory import *

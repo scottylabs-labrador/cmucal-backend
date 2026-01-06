@@ -18,3 +18,19 @@ def course_factory():
         }
 
     return create_course
+
+@pytest.fixture
+def course_batch_factory(course_factory, org_factory):
+    def create_batch(n=3):
+        org = org_factory(name="CMU")
+        return [
+            course_factory(
+                id=str(i),
+                org=org,
+                course_number=f"15{200 + i}",
+                course_name=f"Course {i}",
+            )
+            for i in range(n)
+        ]
+    return create_batch
+
