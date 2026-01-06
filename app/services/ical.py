@@ -1,6 +1,6 @@
 from icalendar import Calendar
 
-from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz, infer_semester_from_datetime
+from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz, infer_semester_from_datetime, parsed_httpdate_to_dt
 
 from datetime import datetime, timedelta, timezone, date
 from typing import Dict, List, Optional
@@ -8,6 +8,9 @@ import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 from app.errors.ical import ICalFetchError
 import os
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+import hashlib
 
 from app.models.models import (
     Event, RecurrenceRule, EventOccurrence,
@@ -96,65 +99,107 @@ def import_ical_feed_using_helpers(
         "event_ids": event_ids,
     }
 
+def sync_ical_source(db: Session, source_id: int) -> str:
+    now = datetime.now(timezone.utc)
 
-## this function (sync_ical_source) has not been tested yet, do not run in production environment
-# def sync_ical_source(db, source: CalendarSource):
-#     # Acquire soft lock
-#     if source.locked_at and (datetime.now(timezone.utc) - source.locked_at).total_seconds() < 1800:
-#         return "locked"
-#     source.locked_at = datetime.now(timezone.utc)
-#     source.lock_owner = os.getenv("HOSTNAME", "worker")
-#     db.flush()
+    # 1️⃣ Acquire lock atomically
+    source = (
+        db.execute(
+            select(CalendarSource)
+            .where(CalendarSource.id == source_id)
+            .with_for_update()
+        )
+        .scalar_one()
+    )
 
-#     try:
-#         url = source.url.replace("webcal://", "https://")
-#         headers = {}
-#         if source.etag:
-#             headers["If-None-Match"] = source.etag
-#         if source.last_modified_hdr:
-#             headers["If-Modified-Since"] = source.last_modified_hdr.strftime("%a, %d %b %Y %H:%M:%S GMT")
+    if source.locked_at and (now - source.locked_at).total_seconds() < 1800:
+        return 'locked'
 
-#         resp = requests.get(url, headers=headers, timeout=30)
-#         if resp.status_code == 304:
-#             source.last_sync_status = "not_modified"
-#         else:
-#             resp.raise_for_status()
-#             body = resp.text
+    source.locked_at = now
+    source.lock_owner = os.getenv('HOSTNAME', 'worker')
+    source.updated_at = now
+    db.flush()
 
-#             # Optional extra guard
-#             h = hashlib.sha256(body.encode("utf-8")).hexdigest()
-#             if h == source.content_hash and source.sync_mode == "delta":
-#                 source.last_sync_status = "not_modified"
-#             else:
-#                 status = import_ical_feed_using_helpers(
-#                     db_session=db,
-#                     ical_text_or_url=body,   # pass raw ICS
-#                     org_id=source.org_id,
-#                     category_id=source.category_id,
-#                     default_event_type=source.default_event_type,
-#                 )
-#                 source.content_hash = h
-#                 source.last_sync_status = "ok"
+    try:
+        # 2️⃣ Fetch ICS with caching headers
+        url = source.url.replace('webcal://', 'https://')
+        headers = {}
 
-#             source.etag = resp.headers.get("ETag") or source.etag
-#             lm = resp.headers.get("Last-Modified")
-#             if lm:
-#                 source.last_modified_hdr = parsed_httpdate_to_dt(lm)
+        if source.etag:
+            headers['If-None-Match'] = source.etag
+        if source.last_modified_hdr:
+            headers['If-Modified-Since'] = source.last_modified_hdr.strftime(
+                '%a, %d %b %Y %H:%M:%S GMT'
+            )
 
-#         source.last_fetched_at = datetime.now(timezone.utc)
-#         source.next_due_at = source.last_fetched_at + timedelta(seconds=source.fetch_interval_seconds)
-#         db.flush()
-#         return source.last_sync_status
-#     except Exception as e:
-#         source.last_error = str(e)[:500]
-#         source.last_sync_status = "error"
-#         db.flush()
-#         raise
-#     finally:
-#         # Release lock
-#         source.locked_at = None
-#         source.lock_owner = None
-#         db.flush()
+        resp = requests.get(url, headers=headers, timeout=30)
+
+        if resp.status_code == 304:
+            source.last_sync_status = 'not_modified'
+            source.last_fetched_at = now
+            source.next_due_at = now + timedelta(seconds=source.fetch_interval_seconds)
+            source.updated_at = now
+            db.flush()
+            return 'not_modified'
+
+        resp.raise_for_status()
+        body = resp.text
+
+        # 3️⃣ Delta check (hash)
+        body_hash = hashlib.sha256(body.encode('utf-8')).hexdigest()
+        if source.sync_mode == 'delta' and body_hash == source.content_hash:
+            source.last_sync_status = 'not_modified'
+            source.last_fetched_at = now
+            source.next_due_at = now + timedelta(seconds=source.fetch_interval_seconds)
+            source.updated_at = now
+            db.flush()
+            return 'not_modified'
+
+        # 4️⃣ Import with savepoint
+        with db.begin_nested():
+            result = import_ical_feed_using_helpers(
+                db_session=db,
+                ical_text_or_url=body,
+                org_id=source.org_id,
+                category_id=source.category_id,
+                default_event_type=source.default_event_type,
+                source_url=source.url,
+                delete_missing_uids=(source.deletion_policy == 'mirror'),
+            )
+
+            if not result.get('success'):
+                raise RuntimeError(result.get('error', 'ICAL_IMPORT_FAILED'))
+
+        # 5️⃣ Update metadata
+        source.content_hash = body_hash
+        source.etag = resp.headers.get('ETag') or source.etag
+
+        lm = resp.headers.get('Last-Modified')
+        if lm:
+            source.last_modified_hdr = parsed_httpdate_to_dt(lm)
+
+        source.last_sync_status = 'ok'
+        source.last_fetched_at = now
+        source.next_due_at = now + timedelta(seconds=source.fetch_interval_seconds)
+        source.updated_at = now
+
+        db.flush()
+        return 'ok'
+
+    except Exception as e:
+        source.last_error = str(e)[:500]
+        source.last_sync_status = 'error'
+        source.updated_at = now
+        db.flush()
+        raise
+
+    finally:
+        # 6️⃣ Always release lock
+        source.locked_at = None
+        source.lock_owner = None
+        source.updated_at = datetime.now(timezone.utc)
+        db.flush()
+
 
 
 def _process_uid_group_with_helpers(
