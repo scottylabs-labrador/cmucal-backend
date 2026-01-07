@@ -8,9 +8,6 @@ from course_agent.app.agent.scores import CRITIC_SCORES
 llm = None
 
 def critic_node(state: CourseAgentState):
-    global llm
-    if llm is None:
-        llm = get_llm()
     website_id = state.get("proposed_site_id")
     url = state.get("proposed_site_url")
     html = state.get("proposed_site_html")
@@ -22,6 +19,32 @@ def critic_node(state: CourseAgentState):
             "done": True,
             "terminal_status": "no_site_found",
         }
+
+    # confidence threshold shortcut
+    if (
+        state["verifier_score"] >= 0.9 and
+        state["heuristic_score"] >= 0.7
+    ):
+        verify_course_website(
+            website_id,
+            "Auto-approved (high confidence)",
+            final_score=0.9
+        )
+        return {
+            **state,
+            "critic_decision": "accept",
+            "verified_site_id": website_id,
+            "verified_site_url": url,
+            "verified_site_html": html,
+            "critic_score": 0.9,
+            "final_score": 0.9,
+            "terminal_status": "success",
+            "done": False
+        }
+
+    global llm
+    if llm is None:
+        llm = get_llm()
 
     snippet = html[:1500]
 

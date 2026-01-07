@@ -3,10 +3,10 @@ from course_agent.app.env import load_env
 
 load_env()
 
-from app.db.repositories import fetch_all_courses, get_or_build_category_for_course, insert_agent_run
-from app.agent.graph import build_course_agent
-from app.services.csv_export import write_courses_csv
-from app.services.fake_courses import fake_courses
+from course_agent.app.db.repositories import fetch_all_courses, get_or_build_category_for_course, insert_agent_run
+from course_agent.app.agent.graph import build_course_agent
+from course_agent.app.services.csv_export import write_courses_csv
+from course_agent.app.services.fake_courses import fake_courses
 
 
 def main():

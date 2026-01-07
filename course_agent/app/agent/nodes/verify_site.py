@@ -2,9 +2,11 @@
 from course_agent.app.services.html_fetcher import fetch_html
 from course_agent.app.services.llm import get_llm
 from course_agent.app.agent.prompts import VERIFY_SITE_PROMPT
-from course_agent.app.db.repositories import upsert_course_website
+from course_agent.app.db.repositories import upsert_course_website, get_course_website_by_url
 from course_agent.app.agent.state import CourseAgentState
 from course_agent.app.agent.scores import heuristic_score, VERIFIER_SCORES
+
+import requests
 
 llm = None
 
@@ -25,9 +27,35 @@ def verify_site_node(state: CourseAgentState):
 
     url = urls[idx]
     html = fetch_html(url)
+    if not html:
+        return {
+            **state,
+            "done": False,
+            "current_url_index": idx + 1,
+        }
+    heur_score = heuristic_score(url, html)
+
     snippet = html[:1500]
 
     print(f"html snippet length: {len(snippet)}")
+
+    existing = get_course_website_by_url(state["course_id"], url)
+
+    if existing:
+        print(f"Found existing course website entry for URL {url} with score {existing['relevance_score']}")
+        score = existing["relevance_score"]
+        if score >= 0.8:
+            return {
+                **state,
+                "proposed_site_id": existing["id"],
+                "proposed_site_url": url,
+                "proposed_site_html": existing.get("html", html),
+                "verifier_score": score,
+                "heuristic_score": heur_score,
+                "verified_site_id": None,
+                "terminal_status": None,
+                "done": False,
+            }
 
     formatted_course_name = f"{state['course_number'][0:2]}-{state['course_number'][2:4]} {state['course_name']}"
     response = (
@@ -51,11 +79,11 @@ def verify_site_node(state: CourseAgentState):
     if response != "yes":
         return {
             **state,
-            "current_url_index": idx + 1
+            "current_url_index": idx + 1,
+            "done": False,
         }
 
     verifier_score = VERIFIER_SCORES.get(response, 0.1)
-    heur_score = heuristic_score(url, html)
 
     print(f"proposed_site_html length: {len(html)}")
     return {

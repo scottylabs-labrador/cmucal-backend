@@ -47,6 +47,10 @@ def test_agent_accepts_site_and_calendar(
         return_value='site-1'
     )
     mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.get_course_website_by_url',
+        return_value=None
+    )
+    mocker.patch(
         'course_agent.app.agent.nodes.critic.verify_course_website'
     )
 
@@ -93,6 +97,10 @@ def test_agent_rejects_first_site_and_continues(
     mocker.patch(
         'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
     )
+    mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.get_course_website_by_url',
+        return_value=None
+    )
 
     mocker.patch(
         'course_agent.app.agent.nodes.verify_site.llm',
@@ -122,6 +130,10 @@ def test_no_site_found_when_search_empty(
     mocker.patch(
         'course_agent.app.agent.nodes.search.get_search_course_site',
         return_value=mock_empty_search_fn
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.get_course_website_by_url',
+        return_value=None
     )
 
     state = agent.invoke(ca_base_state)
@@ -163,6 +175,10 @@ def test_site_without_calendar(
     )
     mocker.patch(
         'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.get_course_website_by_url',
+        return_value=None
     )
     mocker.patch(
         'course_agent.app.agent.nodes.verify_site.llm',

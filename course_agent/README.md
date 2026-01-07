@@ -33,8 +33,7 @@ This task requires:
 - Tool orchestration
 - Graceful failure handling
 
-A single script is brittle.  
-An agent can **observe → decide → act → record**.
+A single script is brittle, while an agent can **observe → decide → act → record**.
 
 ---
 
@@ -62,7 +61,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Environment Variables
-Create `.env`
+Create `.env.development`
 ```
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
@@ -71,7 +70,10 @@ OPENAI_API_KEY=...
 SEARCH_API_KEY=...
 ```
 
-### 3. Run agent over all courses
-`python scripts/run_all_courses.py`
+### 3. Run the command in the root directory in cmucal-backend
+`python -m course_agent.scripts.run_all_courses`
 
 
+## Trouble shooting
+- If encounter `postgrest.exceptions.APIError: {'message': 'permission denied for table agent_runs', 'code': '42501', 'hint': None, 'details': None}`, run the following query in Supabase's SQL Editor
+    - `GRANT ALL PRIVILEGES ON TABLE agent_runs TO service_role;`

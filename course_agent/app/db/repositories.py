@@ -51,6 +51,21 @@ def insert_agent_run(agent_version: str) -> str:
         "agent_version": agent_version
     }).execute().data[0]["id"]
 
+def get_course_website_by_url(course_id: int, url: str):
+    supabase = get_supabase()
+    res = (
+        supabase
+        .table("course_websites")
+        .select("*")
+        .eq("course_id", course_id)
+        .eq("url", url)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
 def upsert_course_website(course_id, agent_run_id, url, score, debug=None):
     supabase = get_supabase()
     return (

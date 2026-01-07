@@ -12,7 +12,7 @@ def test_agent_runs_multiple_courses(
     mocker.patch(
         'course_agent.app.agent.nodes.search.get_search_course_site',
         return_value=lambda *_args, **_kwargs: [
-            'https://www.cs.cmu.edu/~213'
+            'https://www.cs.cmu.edu/~213', 'https://cmu-313.github.io/'
         ]
     )
 
@@ -39,6 +39,10 @@ def test_agent_runs_multiple_courses(
         'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
     )
     mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.get_course_website_by_url',
+        return_value=None
+    )
+    mocker.patch(
         'course_agent.app.agent.nodes.verify_site.llm',
         mock_llm
     )
@@ -52,6 +56,7 @@ def test_agent_runs_multiple_courses(
         state = agent.invoke({
             **course,
             'course_id': course['id'],
+            "category_id": "cat-test",
             'candidate_urls': [],
             'current_url_index': 0,
             'verified_site_id': None,
@@ -61,5 +66,5 @@ def test_agent_runs_multiple_courses(
             'done': False,
             'event_type': 'ACADEMIC',
         })
-
+        print(state['terminal_status'])
         assert state['verified_site_id'] == 'site-x'

@@ -8,8 +8,10 @@ def extract_calendar_node(state: CourseAgentState):
     html = state.get("verified_site_html")
     org_id = state.get("org_id")
     category_id = state.get('category_id')
+    website_id = state.get('verified_site_id')
 
-    if not html or not org_id or not category_id:
+    print(f"Extracting calendar for course {state.get('course_number')} with org_id {org_id}, category_id {category_id}, website_id {website_id}, html length {len(html) if html else 'None'}")
+    if not html or not org_id or not category_id or not website_id:
         return {
             **state,
             "terminal_status": "no_site_found",
@@ -35,6 +37,7 @@ def extract_calendar_node(state: CourseAgentState):
     
     # skip DB writes if already seen this ical_link
     if state.get('ical_link') == ical_link:
+        print(f"Skipping DB write for already seen ical_link: {ical_link}")
         return {
             **state,
             'terminal_status': 'success',
@@ -51,7 +54,7 @@ def extract_calendar_node(state: CourseAgentState):
 
     return {
         **state,
-        "calendar_url": iframe_url,
+        "iframe_url": iframe_url,
         "ical_link": ical_link,
         "terminal_status": "success",
         "done": True,
