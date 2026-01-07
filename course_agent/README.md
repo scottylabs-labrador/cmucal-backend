@@ -61,7 +61,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Environment Variables
-Create `.env.development`
+Make sure `.env.development` contains the follow values:
 ```
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
@@ -77,3 +77,9 @@ SEARCH_API_KEY=...
 ## Trouble shooting
 - If encounter `postgrest.exceptions.APIError: {'message': 'permission denied for table agent_runs', 'code': '42501', 'hint': None, 'details': None}`, run the following query in Supabase's SQL Editor
     - `GRANT ALL PRIVILEGES ON TABLE agent_runs TO service_role;`
+
+## Next Steps
+- currently only using 4 fake courses, should use fetch_all_courses when actually running the script
+- features to add
+    - visit all linked pages of the official website until a google calendar is found, in case calendars are linked in pages other than the homepage. for example: https://www.cs.cmu.edu/~mgormley/courses/10601/officehours.html
+    - when a calendar is found, examine the events to see if OH is included. If so, create the category named `OH for xx-xxx`.
