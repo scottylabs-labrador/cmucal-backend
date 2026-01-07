@@ -14,8 +14,11 @@ class CourseAgentState(TypedDict):
 
     proposed_site_id: Optional[str]
     proposed_site_url: Optional[str]
+    proposed_site_html: Optional[str]
 
     verified_site_id: Optional[str]
+    verified_site_html: Optional[str]
+
     iframe_url: Optional[str]
     ical_link: Optional[str]
 

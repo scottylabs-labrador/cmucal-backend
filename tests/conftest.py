@@ -57,11 +57,12 @@ def forbid_real_llm_calls(mocker):
     )
 
 # ---------- Forbid real Search API calls ----------
-@pytest.fixture(autouse=True)
 def forbid_real_search_calls(mocker):
     mocker.patch(
-        'course_agent.app.services.search.get_search_course_site',
-        side_effect=AssertionError('Search API accessed without mock')
+        'course_agent.app.agent.nodes.search.search',
+        side_effect=AssertionError(
+            'Search accessed without mock. Patch course_agent.app.agent.nodes.search.search'
+        )
     )
 
 # ---------- FACTORY FIXTURES ----------

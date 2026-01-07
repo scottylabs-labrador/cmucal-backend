@@ -6,6 +6,7 @@ from course_agent.app.db.repositories import upsert_course_website
 from course_agent.app.agent.state import CourseAgentState
 from course_agent.app.agent.scores import heuristic_score, VERIFIER_SCORES
 
+llm = None
 
 def verify_site_node(state: CourseAgentState):
     idx = state["current_url_index"]
@@ -17,13 +18,18 @@ def verify_site_node(state: CourseAgentState):
             "done": True,
             "terminal_status": "no_site_found"
         }
+    
+    global llm
+    if llm is None:
+        llm = get_llm()
 
     url = urls[idx]
     html = fetch_html(url)
     snippet = html[:1500]
 
+    print(f"html snippet length: {len(snippet)}")
+
     formatted_course_name = f"{state['course_number'][0:2]}-{state['course_number'][2:4]} {state['course_name']}"
-    llm = get_llm()
     response = (
         llm.invoke(
             VERIFY_SITE_PROMPT.format(
@@ -51,11 +57,15 @@ def verify_site_node(state: CourseAgentState):
     verifier_score = VERIFIER_SCORES.get(response, 0.1)
     heur_score = heuristic_score(url, html)
 
+    print(f"proposed_site_html length: {len(html)}")
     return {
         **state,
         "proposed_site_id": website_id,
         "proposed_site_url": url,
         "proposed_site_html": html,
+        "verified_site_id": None,
+        "terminal_status": None,
+        "done": False,
         "verifier_score": verifier_score,
         "heuristic_score": heur_score
     }

@@ -7,9 +7,10 @@ def test_agent_accepts_site_and_calendar(
     agent = build_course_agent()
 
     # search
+    mock_search_fn = mocker.Mock(return_value=['https://cmu-313.github.io/'])
     mocker.patch(
-        'course_agent.app.services.search.get_search_course_site',
-        return_value=lambda *_args, **_kwargs: ['https://www.cs.cmu.edu/~213']
+        'course_agent.app.agent.nodes.search.get_search_course_site',
+        return_value=mock_search_fn
     )
 
     # html fetch
@@ -30,21 +31,29 @@ def test_agent_accepts_site_and_calendar(
         type('R', (), {'content': 'accept'}),  # critic
     ]
     mocker.patch(
-        'course_agent.app.services.llm.get_llm',
-        return_value=mock_llm
+        'course_agent.app.agent.nodes.verify_site.llm',
+        mock_llm
     )
+
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.llm',
+        mock_llm
+    )
+
 
     # DB writes
     mocker.patch(
-        'course_agent.app.db.repositories.upsert_course_website',
+        'course_agent.app.agent.nodes.verify_site.upsert_course_website',
         return_value='site-1'
     )
     mocker.patch(
-        'course_agent.app.db.repositories.verify_course_website'
+        'course_agent.app.agent.nodes.critic.verify_course_website'
     )
+
     mocker.patch(
-        'course_agent.app.db.repositories.upsert_calendar_source'
+        'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
     )
+
 
     state = agent.invoke(ca_base_state)
 
@@ -75,13 +84,23 @@ def test_agent_rejects_first_site_and_continues(
         type('R', (), {'content': 'reject'}),
     ]
     mocker.patch(
-        'course_agent.app.services.llm.get_llm',
-        return_value=mock_llm
+        'course_agent.app.agent.nodes.verify_site.upsert_course_website',
+        return_value='site-x'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.verify_course_website'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
     )
 
     mocker.patch(
-        'course_agent.app.db.repositories.upsert_course_website',
-        return_value='site-x'
+        'course_agent.app.agent.nodes.verify_site.llm',
+        mock_llm
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.llm',
+        mock_llm
     )
 
     state = verify_site_node(state)
@@ -99,9 +118,10 @@ def test_no_site_found_when_search_empty(
 
     agent = build_course_agent()
 
+    mock_empty_search_fn = mocker.Mock(return_value=[])
     mocker.patch(
-        'course_agent.app.services.search.get_search_course_site',
-        return_value=lambda *_args, **_kwargs: []
+        'course_agent.app.agent.nodes.search.get_search_course_site',
+        return_value=mock_empty_search_fn
     )
 
     state = agent.invoke(ca_base_state)
@@ -117,9 +137,10 @@ def test_site_without_calendar(
 
     agent = build_course_agent()
 
+    mock_search_fn = mocker.Mock(return_value=['https://www.cs.cmu.edu/~213'])
     mocker.patch(
-        'course_agent.app.services.search.get_search_course_site',
-        return_value=lambda *_args, **_kwargs: ['https://www.cs.cmu.edu/~213']
+        'course_agent.app.agent.nodes.search.get_search_course_site',
+        return_value=mock_search_fn
     )
 
 
@@ -134,13 +155,22 @@ def test_site_without_calendar(
         type('R', (), {'content': 'accept'}),
     ]
     mocker.patch(
-        'course_agent.app.services.llm.get_llm',
-        return_value=mock_llm
-    )
-
-    mocker.patch(
-        'course_agent.app.db.repositories.upsert_course_website',
+        'course_agent.app.agent.nodes.verify_site.upsert_course_website',
         return_value='site-1'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.verify_course_website'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.llm',
+        mock_llm
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.llm',
+        mock_llm
     )
 
     state = agent.invoke(ca_base_state)

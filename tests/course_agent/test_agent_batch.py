@@ -10,8 +10,10 @@ def test_agent_runs_multiple_courses(
     agent = build_course_agent()
 
     mocker.patch(
-        'course_agent.app.services.search.get_search_course_site',
-        return_value=lambda *_args, **_kwargs: ['https://www.cs.cmu.edu/~213']
+        'course_agent.app.agent.nodes.search.get_search_course_site',
+        return_value=lambda *_args, **_kwargs: [
+            'https://www.cs.cmu.edu/~213'
+        ]
     )
 
 
@@ -27,18 +29,29 @@ def test_agent_runs_multiple_courses(
     )
 
     mocker.patch(
-        'course_agent.app.services.llm.get_llm',
-        return_value=mock_llm
-    )
-
-    mocker.patch(
-        'course_agent.app.db.repositories.upsert_course_website',
+        'course_agent.app.agent.nodes.verify_site.upsert_course_website',
         return_value='site-x'
     )
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.verify_course_website'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.extract_calendar.upsert_calendar_source'
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.verify_site.llm',
+        mock_llm
+    )
+    mocker.patch(
+        'course_agent.app.agent.nodes.critic.llm',
+        mock_llm
+    )
+
 
     for course in courses:
         state = agent.invoke({
             **course,
+            'course_id': course['id'],
             'candidate_urls': [],
             'current_url_index': 0,
             'verified_site_id': None,

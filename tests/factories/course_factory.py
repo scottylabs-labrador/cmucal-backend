@@ -9,12 +9,14 @@ def course_factory():
         org,
         course_number="15213",
         course_name="Intro to Computer Systems",
+        **kwargs
     ):
         return {
             "id": id,
             "org_id": org.id,
             "course_number": course_number,
             "course_name": course_name,
+            **kwargs,
         }
 
     return create_course
@@ -29,6 +31,7 @@ def course_batch_factory(course_factory, org_factory):
                 org=org,
                 course_number=f"15{200 + i}",
                 course_name=f"Course {i}",
+                agent_run_id='test-run',
             )
             for i in range(n)
         ]
