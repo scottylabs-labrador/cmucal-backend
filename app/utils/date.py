@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
+from email.utils import parsedate_to_datetime
 
 DEFAULT_TZ = ZoneInfo("America/New_York")  # pick what’s right for your feed
 
@@ -123,3 +124,15 @@ def infer_semester_from_datetime(dt: datetime | str) -> str:
         return f"Summer_{str(year)[-2:]}"
     else:
         return f"Fall_{str(year)[-2:]}"
+
+def parsed_httpdate_to_dt(value: str):
+    """
+    Parse HTTP date (RFC 7231 / RFC 1123) into timezone-aware datetime (UTC).
+    """
+    if not value:
+        return None
+    dt = parsedate_to_datetime(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
