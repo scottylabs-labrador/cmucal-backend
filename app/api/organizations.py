@@ -1,17 +1,35 @@
 from flask import Blueprint, jsonify, request, g
-from app.models.user import get_user_by_clerk_id, create_user, user_to_dict, get_user_by_email, create_user_without_clerk
-from app.services.google_service import fetch_user_credentials
-from app.models.user import update_user_calendar_id
-from app.services.google_service import create_cmucal_calendar
-from app.models.organization import create_organization, get_orgs_by_type, get_organization_by_name
+from app.models.user import get_user_by_clerk_id, get_user_by_email, create_user_without_clerk, get_user_by_id
+from app.models.organization import create_organization, get_orgs_by_type, get_organization_by_name, get_organization_by_id
 from app.models.models import Organization
-from app.models.admin import create_admin, get_admin_by_org_and_user
+from app.models.admin import create_admin, get_admin_by_org_and_user, get_admins_by_org
 from app.models.category import create_category, get_categories_by_org_id
 from app.utils.course_data import get_course_data
 
 
 
 orgs_bp = Blueprint("orgs", __name__)
+
+@orgs_bp.route("/get_all_orgs", methods=["GET"])
+def get_all_orgs():
+    db = g.db
+    try:
+        orgs = db.query(Organization).all()
+        orgs_list = []
+        for org in orgs:
+            orgs_list.append({
+                "id": org.id,
+                "name": org.name,
+                "description": org.description,
+                "type": org.type,
+                "tags": org.tags,
+            })
+
+        return jsonify(orgs_list), 200
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 @orgs_bp.route("/get_course_orgs", methods=["GET"])
 def get_course_orgs():
@@ -81,9 +99,6 @@ def get_courses_from_soc():
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         return jsonify({"error": "An error occurred while fetching course data."}), 500
-
-
-
 
 @orgs_bp.route("/create_org", methods=["POST"])
 def create_org_record():
@@ -284,6 +299,63 @@ def bulk_create_admins():
         db.commit()
         return jsonify(response_data), 201
             
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@orgs_bp.route("/get_admins_in_org", methods=["GET"])
+def get_admins_in_org():
+    db = g.db
+    try:
+        org_id = request.args.get("org_id")
+        if not org_id:
+            return jsonify({"error": "Missing org_id"}), 400
+        
+        admins = get_admins_by_org(db, org_id=int(org_id))
+        
+        admins_list = []
+        for admin in admins:
+            user = get_user_by_id(db, admin.user_id)
+            org = get_organization_by_id(db, admin.org_id)
+            andrew_id = user.email.split("@")[0] if user.email else "N/A"
+            print(f"Admin User: {andrew_id}, Org: {org.name}, Role: {admin.role}")
+            admins_list.append({
+                "user_id": user.id,
+                "andrew_id": andrew_id,
+                "user_email": user.email,
+                "org_id": org.id,
+                "org_name": org.name,
+                "role": admin.role,
+                "category_id": admin.category_id
+            })
+        
+        return jsonify(admins_list), 200
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@orgs_bp.route("/get_user_role_in_org", methods=["GET"])
+def get_user_role_in_org():
+    db = g.db
+    try:
+        clerk_id = request.headers.get('Clerk-User-Id')
+        if not clerk_id:
+            return jsonify({"error": "Missing clerk_id"}), 400
+        user = get_user_by_clerk_id(db, clerk_id)
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+        
+        org_id = request.args.get("org_id")
+        if not org_id:
+            return jsonify({"error": "Missing org_id"}), 400
+        
+        admin = get_admin_by_org_and_user(db, org_id=int(org_id), user_id=int(user.id))
+        if not admin:
+            return jsonify({"role": "member"}), 200
+        
+        return jsonify({"role": admin.role}), 200
     except Exception as e:
         import traceback
         print("❌ Exception:", traceback.format_exc())

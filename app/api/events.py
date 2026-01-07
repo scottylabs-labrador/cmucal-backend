@@ -8,11 +8,11 @@ from app.models.club import save_club
 from app.models.tag import get_tag_by_name, save_tag, get_all_tags
 from app.models.event_tag import save_event_tag, get_tags_by_event, delete_event_tag
 from app.models.recurrence_rule import add_recurrence_rule, get_recurrence_rule_by_event, update_recurrence_rule
-from app.models.event_occurrence import populate_event_occurrences, save_event_occurrence, update_event_occurrence, as_dict
+from app.models.event_occurrence import populate_event_occurrences, save_event_occurrence, update_event_occurrence, as_dict, regenerate_event_occurrences_by_event_ids
 from app.models.category import category_to_dict, get_category_by_id
-from app.models.models import CalendarSource, CategoryIcal, Event, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
+from app.models.models import CalendarSource, CategoryIcal, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
 import pprint
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import cast, Date, or_
 
 from app.services.ical import import_ical_feed_using_helpers
@@ -38,6 +38,7 @@ def create_event_record():
         end_datetime = data.get("end_datetime")
         is_all_day = data.get("is_all_day", False)
         location = data.get("location", None)
+        semester = data.get("semester", None)
         source_url = data.get("source_url", None)
         event_type= data.get("event_type", None)
         user_edited = data.get("user_edited", [])
@@ -67,6 +68,7 @@ def create_event_record():
                             end_datetime=end_datetime,
                             is_all_day=is_all_day,
                             location=location,
+                            semester=semester,
                             source_url=source_url,
                             event_type=event_type,
                             user_edited=user_edited)
@@ -160,6 +162,7 @@ def read_gcal_link():
         org_id = data.get("org_id")
         category_id = data.get("category_id")
         clerk_id = data.get("clerk_id", None)
+        semester = data.get("semester", None)
 
         if not gcal_link:
             return jsonify({"error": "Missing gcal_link"}), 400
@@ -172,8 +175,9 @@ def read_gcal_link():
             ical_text_or_url=gcal_link,
             org_id=org_id,
             category_id=category_id,
+            semester=semester,
             default_event_type=event_type,
-            user_id=user.id
+            user_id=user.id,
         )
         print(ics_message)
         # Handle parse-level failure
@@ -327,6 +331,34 @@ def create_single_event_occurrence():
         print("❌ Exception:", traceback.format_exc())
         return jsonify({"error": str(e)}), 500
         
+
+
+@events_bp.route("/regenerate_occurrences_by_events", methods=["POST"])
+def regenerate_occurrences_by_events():
+    db = g.db
+    try:
+        data = request.get_json()
+        event_ids = data.get("event_ids")
+
+        if not event_ids:
+            return jsonify({"error": "Missing event_ids"}), 400
+
+        regenerated, skipped = regenerate_event_occurrences_by_event_ids(db, event_ids)
+
+        db.commit()
+
+        return jsonify({
+                "status": "ok",
+                "regenerated_events": regenerated,
+                "skipped_events": skipped
+            }), 201
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @events_bp.route("/tags", methods=["GET"])
 def get_tags():
     # print("🙇 geting tags 🙇")
@@ -580,6 +612,8 @@ def update_event(event_id):
 
         # TODO: update recurrence table
 
+        # update event last_updated_at
+        event.last_updated_at = datetime.now(timezone.utc)
         db.commit()
 
         event_dict = event.as_dict()

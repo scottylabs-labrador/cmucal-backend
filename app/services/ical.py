@@ -1,6 +1,6 @@
 from icalendar import Calendar
 
-from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz
+from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz, infer_semester_from_datetime
 
 from datetime import datetime, timedelta, timezone, date
 from typing import Dict, List, Optional
@@ -26,6 +26,7 @@ def import_ical_feed_using_helpers(
     *,
     org_id: int,
     category_id: int,
+    semester: Optional[str] = None,
     default_event_type: Optional[str] = None,   # e.g. "CLUB"/"ACADEMIC"/"CAREER"/"OH"/NONE
     source_url: Optional[str] = None,
     # user_edited: Optional[List[int]] = None,
@@ -77,7 +78,8 @@ def import_ical_feed_using_helpers(
             category_id=category_id,
             default_event_type=default_event_type,
             source_url=source_url,
-            user_id=user_id
+            user_id=user_id,
+            semester=semester
         )
         if event_id:
             event_ids.append(event_id)
@@ -167,7 +169,8 @@ def _process_uid_group_with_helpers(
     default_event_type: Optional[str],
     source_url: Optional[str],
     # user_edited: Optional[bool],
-    user_id: Optional[int]
+    user_id: Optional[int],
+    semester: Optional[str]
 ):
     # Split: base components (no RECURRENCE-ID) vs overrides
     base_candidates = [c for c in components if not c.get("RECURRENCE-ID")]
@@ -178,6 +181,9 @@ def _process_uid_group_with_helpers(
 
     base = _pick_base_component(base_candidates)
     dtstart = decoded_dt_with_tz(base, "DTSTART")
+
+    event_semester = semester or infer_semester_from_datetime(dtstart)
+
     min_dt = now - timedelta(days=365)
     if dtstart < min_dt:
         # skip events older than 1 year
@@ -224,7 +230,7 @@ def _process_uid_group_with_helpers(
             existing.is_all_day = is_all_day
             existing.source_url = source_url
             existing.event_type = default_event_type
-
+            existing.semester = event_semester
 
             user_edited = existing.user_edited if existing.user_edited else []
             user_edited.append(user_id)
@@ -255,6 +261,7 @@ def _process_uid_group_with_helpers(
             location=location or None,
             source_url=source_url,
             event_type=default_event_type,
+            semester=event_semester,
             user_edited=[user_id]
         )
         db_session.flush()
