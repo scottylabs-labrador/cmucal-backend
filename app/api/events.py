@@ -10,7 +10,7 @@ from app.models.event_tag import save_event_tag, get_tags_by_event, delete_event
 from app.models.recurrence_rule import add_recurrence_rule
 from app.models.event_occurrence import populate_event_occurrences, regenerate_event_occurrences_by_event_ids, save_event_occurrence
 from app.models.category import category_to_dict, get_category_by_id
-from app.models.models import CalendarSource, CategoryIcal, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
+from app.models.models import CalendarSource, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
 import pprint
 from datetime import datetime, timezone
 from sqlalchemy import cast, Date, or_
@@ -18,7 +18,6 @@ from sqlalchemy import cast, Date, or_
 from app.services.ical import import_ical_feed_using_helpers
 from app.errors.ical import ICalFetchError
 from app.models.calendar_source import create_calendar_source
-from app.models.category_ical import create_category_ical
 
 
 events_bp = Blueprint("events", __name__)
@@ -163,6 +162,7 @@ def read_gcal_link():
         category_id = data.get("category_id")
         clerk_id = data.get("clerk_id", None)
         semester = data.get("semester", None)
+        notes = data.get("notes", None)
 
         if not gcal_link:
             return jsonify({"error": "Missing gcal_link"}), 400
@@ -178,39 +178,47 @@ def read_gcal_link():
             semester=semester,
             default_event_type=event_type,
             user_id=user.id,
+            source_url=gcal_link
         )
         print(ics_message)
         # Handle parse-level failure
         if ics_message.get("success") is False:
             return jsonify(ics_message), 400
 
+        # Ensure CalendarSource exists (category ⟶ many sources), 
         # store the gcal link if it is not already stored
-        existing_calendar_source = db.query(CalendarSource).filter(CalendarSource.url == gcal_link).first()
-        if not existing_calendar_source:
+        calendar_source = (
+            db.query(CalendarSource)
+            .filter(
+                CalendarSource.url == gcal_link,
+                CalendarSource.category_id == category_id,
+            )
+            .first()
+        )
+
+        if not calendar_source:
             calendar_source = create_calendar_source(
                 db_session=db,
                 url=gcal_link,
                 org_id=org_id,
                 category_id=category_id,
                 active=True,
+                notes=notes,
                 default_event_type=event_type,
-                created_by_user_id=user.id
+                created_by_user_id=user.id,
             )
-            existing_calendar_source = calendar_source
-        existing_category_ical = db.query(CategoryIcal).filter(CategoryIcal.calendar_source_id == existing_calendar_source.id).first()
-        if not existing_category_ical:
-            category_ical = create_category_ical(
-                db_session=db,
-                category_id=category_id,
-                calendar_source_id=existing_calendar_source.id
-            )
-            existing_category_ical = category_ical
+        else:
+            # Optional: update mutable fields
+            if notes is not None:
+                calendar_source.notes = notes
+            if event_type is not None:
+                calendar_source.default_event_type = event_type
 
         db.commit()  # Only commit if all succeeded
         return jsonify({
             "success": True,
             "message": "Google Calendar link processed successfully.",
-            "calendar_source_id": existing_calendar_source.id,
+            "calendar_source_id": calendar_source.id,
         }), 201
     
     # import_ical_feed_using_helpers errors
@@ -221,7 +229,7 @@ def read_gcal_link():
             "message": e.message,
         }), 400
 
-    # Unexpcted errors
+    # Unexpected errors
     except Exception as e:
         import traceback
         print("❌ Exception:", traceback.format_exc())
