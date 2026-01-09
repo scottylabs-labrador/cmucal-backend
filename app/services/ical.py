@@ -1,6 +1,9 @@
 from icalendar import Calendar
 
+from app.models.calendar_source import deactivate_calendar_source
 from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz, infer_semester_from_datetime, parsed_httpdate_to_dt
+from zoneinfo import ZoneInfo
+from sqlalchemy import select, delete
 
 from datetime import datetime, timedelta, timezone, date
 from typing import Dict, List, Optional
@@ -8,7 +11,6 @@ import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 from app.errors.ical import ICalFetchError
 import os
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 import hashlib
 
@@ -23,12 +25,57 @@ from app.models.event import save_event
 
 LOOKAHEAD_DAYS = 180  # window for generating occurrences
 
+def normalize_ics_datetime(dt, calendar_tz: ZoneInfo):
+    """
+    Normalize datetime parsed from ICS.
+
+    Rules:
+    - If dt is floating (tzinfo is None): interpret in calendar_tz
+    - If dt has tzinfo: trust it (do NOT re-localize)
+    - Convert to UTC only at persistence time, DO NOT convert to UTC here
+    """
+    if dt.tzinfo is None:
+        # Floating time → calendar local time
+        dt = dt.replace(tzinfo=calendar_tz)
+
+    return dt
+
+def get_calendar_timezone(cal: Calendar) -> Optional[ZoneInfo]:
+    """
+    Derive calendar timezone from an ICS Calendar object.
+    Should work for Google Calendar, Apple Calendar, Outlook, most RFC-compliant ICS feeds.
+
+    Priority:
+    1. X-WR-TIMEZONE (Google, Apple)
+    2. VTIMEZONE TZID
+    """
+
+    # X-WR-TIMEZONE (most common for Google Calendar)
+    tzname = cal.get("X-WR-TIMEZONE")
+    if tzname:
+        try:
+            return ZoneInfo(str(tzname))
+        except Exception:
+            pass
+
+    # VTIMEZONE component
+    for component in cal.walk("VTIMEZONE"):
+        tzid = component.get("TZID")
+        if tzid:
+            try:
+                return ZoneInfo(str(tzid))
+            except Exception:
+                pass
+
+    return None
+
 def import_ical_feed_using_helpers(
     db_session,
     ical_text_or_url: str,
     *,
     org_id: int,
     category_id: int,
+    calendar_source_id: int,
     semester: Optional[str] = None,
     default_event_type: Optional[str] = None,   # e.g. "CLUB"/"ACADEMIC"/"CAREER"/"OH"/NONE
     source_url: Optional[str] = None,
@@ -51,6 +98,11 @@ def import_ical_feed_using_helpers(
             "error": "ICAL_PARSE_ERROR",
             "message": "The calendar data could not be parsed as a valid iCal file.",
         }
+    
+    calendar_tz = (
+        get_calendar_timezone(cal)
+        or ZoneInfo("UTC")  # last-resort fallback
+    )
 
     event_ids = []
 
@@ -74,6 +126,7 @@ def import_ical_feed_using_helpers(
         event_id = _process_uid_group_with_helpers(
             db_session=db_session,
             uid=uid,
+            calendar_tz=calendar_tz,
             components=components,
             now=now,
             horizon=horizon,
@@ -82,14 +135,15 @@ def import_ical_feed_using_helpers(
             default_event_type=default_event_type,
             source_url=source_url,
             user_id=user_id,
-            semester=semester
+            semester=semester,
+            calendar_source_id=calendar_source_id
         )
         if event_id:
             event_ids.append(event_id)
 
     # 4) Optionally delete events no longer present
     if delete_missing_uids:
-        existing_uids = {row[0] for row in db_session.query(Event.ical_uid).filter(Event.org_id==org_id, Event.category_id==category_id).all()}
+        existing_uids = {row[0] for row in db_session.query(Event.ical_uid).filter(Event.calendar_source_id == calendar_source_id).all()}
         missing = list(existing_uids - incoming_uids)
         if missing:
             db_session.query(Event).filter(Event.ical_uid.in_(missing)).delete(synchronize_session=False)
@@ -160,6 +214,7 @@ def sync_ical_source(db: Session, source_id: int) -> str:
             result = import_ical_feed_using_helpers(
                 db_session=db,
                 ical_text_or_url=body,
+                calendar_source_id=source.id,
                 org_id=source.org_id,
                 category_id=source.category_id,
                 default_event_type=source.default_event_type,
@@ -203,19 +258,20 @@ def sync_ical_source(db: Session, source_id: int) -> str:
 
 
 def _process_uid_group_with_helpers(
+    *,
     db_session,
     uid: str,
+    calendar_tz: ZoneInfo,
     components: List,
     now: datetime,
     horizon: datetime,
-    *,
+    calendar_source_id: int,
     org_id: int,
     category_id: int,
     default_event_type: Optional[str],
     source_url: Optional[str],
-    # user_edited: Optional[bool],
     user_id: Optional[int],
-    semester: Optional[str]
+    semester: Optional[str],
 ):
     # Split: base components (no RECURRENCE-ID) vs overrides
     base_candidates = [c for c in components if not c.get("RECURRENCE-ID")]
@@ -236,8 +292,11 @@ def _process_uid_group_with_helpers(
 
 
     # Base fields
-    dtstart = decoded_dt_with_tz(base, "DTSTART")  # aware datetime or date
-    dtend   = decoded_dt_with_tz(base, "DTEND")
+    raw_dtstart = decoded_dt_with_tz(base, "DTSTART")
+    raw_dtend   = decoded_dt_with_tz(base, "DTEND")
+    dtstart = normalize_ics_datetime(raw_dtstart, calendar_tz)
+    dtend   = normalize_ics_datetime(raw_dtend, calendar_tz) if raw_dtend else None
+
     is_all_day = _is_all_day_component(base)
 
     # Convert to ISO strings for your helper
@@ -254,7 +313,7 @@ def _process_uid_group_with_helpers(
 
     # --- DEDUPE LOOKUP (scope by org+category; add source_id if you have it) ---
     existing = (db_session.query(Event)
-                .filter_by(org_id=org_id, category_id=category_id, ical_uid=uid)
+                .filter_by(calendar_source_id=calendar_source_id, ical_uid=uid)
                 .first())
     
     changed = _should_update(existing, seq, last_modified)
@@ -276,6 +335,7 @@ def _process_uid_group_with_helpers(
             existing.source_url = source_url
             existing.event_type = default_event_type
             existing.semester = event_semester
+            existing.calendar_source_id = calendar_source_id
 
             user_edited = existing.user_edited if existing.user_edited else []
             user_edited.append(user_id)
@@ -309,6 +369,7 @@ def _process_uid_group_with_helpers(
             semester=event_semester,
             user_edited=[user_id]
         )
+        event.calendar_source_id = calendar_source_id
         db_session.flush()
         # Add iCal metadata directly on the persisted model
         event.ical_uid = uid
@@ -326,7 +387,11 @@ def _process_uid_group_with_helpers(
         # NOTE: all datetimes passed as ISO
         until_val = (rrule.get("UNTIL") or [None])[0]
         # icalendar may give UNTIL as date/datetime; convert to ISO string if present
-        until_iso = _to_iso_for_helper(until_val, _looks_like_date(until_val)) if until_val else None
+        if until_val:
+            until_dt = normalize_ics_datetime(until_val, calendar_tz)
+            until_iso = until_dt.isoformat()
+        else:
+            until_iso = None
         by_day = rrule.get("BYDAY", [])
         if isinstance(by_day, str):
             by_day = [by_day]  # Wrap in list if single string
@@ -399,9 +464,10 @@ def _process_uid_group_with_helpers(
         # Iterate safely
         for ex in exdate_entries:
             for ex_date in ex.dts:
+                ex_dt = normalize_ics_datetime(ex_date.dt, calendar_tz)
                 db_session.add(RecurrenceExdate(
                     rrule_id=rule.id,
-                    exdate=_ensure_aware(ex_date.dt)
+                    exdate=ex_dt.astimezone(timezone.utc)
                 ))
 
         # ---- Safe RDATE normalization ----
@@ -424,7 +490,7 @@ def _process_uid_group_with_helpers(
             for rd in entry.dts:
                 db_session.add(RecurrenceRdate(
                     rrule_id=rule.id,
-                    rdate=_ensure_aware(rd.dt)
+                    rdate=_ensure_aware(rd.dt).astimezone(timezone.utc)
                 ))
                 db_session.flush()
 
@@ -434,9 +500,10 @@ def _process_uid_group_with_helpers(
             rid = oc.get("RECURRENCE-ID")
             if not rid:
                 continue
+            rid_dt = normalize_ics_datetime(rid.dt, calendar_tz)
             db_session.add(EventOverride(
                 rrule_id=rule.id,
-                recurrence_date=_ensure_aware(rid.dt),
+                recurrence_date=rid_dt,
                 new_start=decoded_dt_with_tz(oc, "DTSTART"),
                 new_end=decoded_dt_with_tz(oc, "DTEND"),
                 new_title=str(oc.get("SUMMARY") or None),
@@ -459,10 +526,10 @@ def _process_uid_group_with_helpers(
             db_session.delete(old_rule)
             db_session.flush()
         
-        if changed or not _has_occurrence(db_session, event.id, _ensure_aware(dtstart), _ensure_aware(dtend) if dtend else _ensure_aware(dtstart)):
+        if changed or not _has_occurrence(db_session, event.id, _ensure_aware(dtstart).astimezone(timezone.utc), _ensure_aware(dtend).astimezone(timezone.utc) if dtend else _ensure_aware(dtstart).astimezone(timezone.utc)):
 
         # Write a single occurrence via your helper
-            event_saved_at = getattr(event, "last_updated_at", datetime.utcnow())
+            event_saved_at = getattr(event, "last_updated_at", datetime.now(timezone.utc))
 
             save_event_occurrence(
                 db_session,
@@ -586,3 +653,123 @@ def _pick_base_component(bases: List):
     if with_rrule:
         return with_rrule[0]
     return sorted(bases, key=lambda b: decoded_dt_with_tz(b, "DTSTART"))[0]
+
+from app.models.models import (
+    Event,
+    CalendarSource,
+    EventOccurrence,
+    EventTag,
+    UserSavedEvent,
+    Academic,
+    Career,
+    Club,
+    RecurrenceRule,
+    RecurrenceExdate,
+    RecurrenceRdate,
+    EventOverride,
+    RecurrenceOverride,
+)
+
+
+def delete_events_for_calendar_source(
+    db: Session,
+    calendar_source_id: int,
+) -> list[int]:
+    """
+    Delete all events associated with a CalendarSource, including
+    all dependent rows, and deactivate the CalendarSource.
+
+    Returns:
+        List of deleted event IDs.
+    """
+
+    # Lock and fetch calendar source
+    calendar_source = (
+        db.query(CalendarSource)
+        .filter(CalendarSource.id == calendar_source_id)
+        .with_for_update()
+        .one_or_none()
+    )
+
+    if not calendar_source:
+        raise ValueError("CalendarSource not found")
+
+    # Collect event IDs once
+    event_id_list = (
+        db.query(Event.id)
+        .filter(Event.calendar_source_id == calendar_source_id)
+        .all()
+    )
+    event_id_list = [eid for (eid,) in event_id_list]
+
+    if not event_id_list:
+        # Still deactivate calendar source
+        calendar_source.active = False
+        calendar_source.updated_at = datetime.now(timezone.utc)
+        db.flush()
+        return []
+
+    event_id_subq = select(Event.id).where(Event.id.in_(event_id_list))
+
+    # Delete Event-level children
+    db.execute(
+        delete(EventOccurrence).where(EventOccurrence.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(EventTag).where(EventTag.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(UserSavedEvent).where(UserSavedEvent.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(Academic).where(Academic.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(Career).where(Career.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(Club).where(Club.event_id.in_(event_id_subq))
+    )
+
+    # Handle recurrence hierarchy
+    rrule_ids = (
+        select(RecurrenceRule.id)
+        .where(RecurrenceRule.event_id.in_(event_id_subq))
+    )
+
+    db.execute(
+        delete(RecurrenceExdate).where(
+            RecurrenceExdate.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(RecurrenceRdate).where(
+            RecurrenceRdate.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(EventOverride).where(
+            EventOverride.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(RecurrenceOverride).where(
+            RecurrenceOverride.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(RecurrenceRule).where(
+            RecurrenceRule.id.in_(rrule_ids)
+        )
+    )
+
+    # Delete events
+    db.execute(
+        delete(Event).where(Event.id.in_(event_id_subq))
+    )
+
+    # Deactivate calendar source
+    deactivate_calendar_source(db, calendar_source_id)
+
+    db.flush()
+    return event_id_list

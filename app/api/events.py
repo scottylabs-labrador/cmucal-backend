@@ -10,12 +10,12 @@ from app.models.event_tag import save_event_tag, get_tags_by_event, delete_event
 from app.models.recurrence_rule import add_recurrence_rule
 from app.models.event_occurrence import populate_event_occurrences, regenerate_event_occurrences_by_event_ids, save_event_occurrence
 from app.models.category import category_to_dict, get_category_by_id
-from app.models.models import CalendarSource, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
+from app.models.models import Academic, CalendarSource, Career, Club, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag, RecurrenceExdate, RecurrenceRdate, EventOverride, RecurrenceOverride
 import pprint
 from datetime import datetime, timezone
-from sqlalchemy import cast, Date, or_
+from sqlalchemy import cast, Date, or_, delete, select
 
-from app.services.ical import import_ical_feed_using_helpers
+from app.services.ical import delete_events_for_calendar_source, import_ical_feed_using_helpers
 from app.errors.ical import ICalFetchError
 from app.models.calendar_source import create_calendar_source
 
@@ -170,21 +170,6 @@ def read_gcal_link():
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        ics_message = import_ical_feed_using_helpers(
-            db_session=db,
-            ical_text_or_url=gcal_link,
-            org_id=org_id,
-            category_id=category_id,
-            semester=semester,
-            default_event_type=event_type,
-            user_id=user.id,
-            source_url=gcal_link
-        )
-        print(ics_message)
-        # Handle parse-level failure
-        if ics_message.get("success") is False:
-            return jsonify(ics_message), 400
-
         # Ensure CalendarSource exists (category ⟶ many sources), 
         # store the gcal link if it is not already stored
         calendar_source = (
@@ -213,6 +198,25 @@ def read_gcal_link():
                 calendar_source.notes = notes
             if event_type is not None:
                 calendar_source.default_event_type = event_type
+            if calendar_source.active is False:
+                calendar_source.active = True
+        db.flush()
+
+        ics_message = import_ical_feed_using_helpers(
+            db_session=db,
+            ical_text_or_url=gcal_link,
+            org_id=org_id,
+            category_id=category_id,
+            semester=semester,
+            default_event_type=event_type,
+            user_id=user.id,
+            source_url=gcal_link,
+            calendar_source_id=calendar_source.id
+        )
+        print(ics_message)
+        # Handle parse-level failure
+        if ics_message.get("success") is False:
+            return jsonify(ics_message), 400
 
         db.commit()  # Only commit if all succeeded
         return jsonify({
@@ -239,6 +243,40 @@ def read_gcal_link():
             "error": "INTERNAL_SERVER_ERROR",
             "message": str(e),
         }), 500
+
+@events_bp.route("/delete_events_and_deactivate_calendar", methods=["DELETE"])
+def delete_events_and_deactivate_calendar():
+    """Deletes all events associated with a calendar source ID and deactivates it"""
+    db = g.db
+    try:
+        data = request.get_json()
+        calendar_source_id = data.get("calendar_source_id")
+
+        if not calendar_source_id:
+            return jsonify({"error": "Missing calendar_source_id"}), 400
+
+        deleted_event_ids = delete_events_for_calendar_source(
+            db=db,
+            calendar_source_id=calendar_source_id,
+        )
+
+        db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "calendar_source_id": calendar_source_id,
+            "deleted_events": len(deleted_event_ids),
+            "event_ids": deleted_event_ids,
+        }), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
 
 # @events_bp.route("/generate_more_occurrences", methods=["POST"])
 # def generate_more_occurrences():
@@ -353,6 +391,8 @@ def regenerate_occurrences_by_events():
 
         regenerated, skipped = regenerate_event_occurrences_by_event_ids(db, event_ids)
 
+        print("Before commit, occurrences count:", db.query(EventOccurrence).count())
+        
         db.commit()
 
         return jsonify({
@@ -483,6 +523,133 @@ def get_all_events():
             }
             for e in events
         ]
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@events_bp.route("/batch_delete_events_by_params", methods=["DELETE"])
+def batch_delete_events_by_params():
+    """
+    Deletes Events AND all dependent rows:
+    - EventOccurrence
+    - RecurrenceRule (+ overrides, rdates, exdates)
+    - EventTag
+    - Academic / Career / Club
+    - UserSavedEvent
+    
+    Parameters can include semester, org_id, category_id, event_type, source_url.
+    Note that SOC events are identified by source_url: 'https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule'
+    """
+    db = g.db
+    try:
+        data = request.get_json()
+
+        semester = data.get("semester")
+        org_id = data.get("org_id")
+        category_id = data.get("category_id")
+        event_type = data.get("event_type")
+        source_url = data.get("source_url")
+
+        if not any([semester, org_id, category_id, event_type, source_url]):
+            return jsonify({"error": "At least one filter must be provided"}), 400
+
+        # --------------------------------------------------
+        # 1. Build event ID subquery
+        # --------------------------------------------------
+        event_ids = select(Event.id)
+
+        if semester:
+            event_ids = event_ids.where(Event.semester == semester)
+        if org_id:
+            event_ids = event_ids.where(Event.org_id == org_id)
+        if category_id:
+            event_ids = event_ids.where(Event.category_id == category_id)
+        if event_type:
+            event_ids = event_ids.where(Event.event_type == event_type)
+        if source_url:
+            event_ids = event_ids.where(Event.source_url == source_url)
+
+        # Materialize once (for counts + reuse)
+        event_id_list = db.execute(event_ids).scalars().all()
+        if not event_id_list:
+            return jsonify({"status": "no events matched"}), 200
+
+        event_id_subq = select(Event.id).where(Event.id.in_(event_id_list))
+
+        # --------------------------------------------------
+        # 2. Delete Event-level children
+        # --------------------------------------------------
+        print(f"Deleting dependent rows for {len(event_id_list)} events")
+        db.execute(
+            delete(EventOccurrence).where(EventOccurrence.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(EventTag).where(EventTag.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(UserSavedEvent).where(UserSavedEvent.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(Academic).where(Academic.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(Career).where(Career.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(Club).where(Club.event_id.in_(event_id_subq))
+        )
+        # --------------------------------------------------
+        # 3. Handle recurrence hierarchy
+        # --------------------------------------------------
+        rrule_ids = select(RecurrenceRule.id).where(
+            RecurrenceRule.event_id.in_(event_id_subq)
+        )
+        db.execute(
+            delete(RecurrenceExdate).where(
+                RecurrenceExdate.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(RecurrenceRdate).where(
+                RecurrenceRdate.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(EventOverride).where(
+                EventOverride.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(RecurrenceOverride).where(
+                RecurrenceOverride.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(RecurrenceRule).where(
+                RecurrenceRule.id.in_(rrule_ids)
+            )
+        )
+
+        # --------------------------------------------------
+        # 4. Delete events
+        # --------------------------------------------------
+        db.execute(
+            delete(Event).where(Event.id.in_(event_id_subq))
+        )
+
+        db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "deleted_events": len(event_id_list),
+            "event_ids": event_id_list,
+        }), 200
 
     except Exception as e:
         import traceback

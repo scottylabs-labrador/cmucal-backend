@@ -59,6 +59,7 @@ APP_ENV=production alembic upgrade head
 
 - `upgrade head` = run migrations + bump version.
 - `stamp head` = bump version only, no migrations executed.
+- `alembic downgrade -1` = undo the latest migration
 
 ## 6. Course data
 - see scraper readme instructions on `export_soc`. Edit Railway cron job at  [this link](https://railway.com/project/065650eb-f1b3-4b72-9bdc-e0d0a9457205?environmentId=5b57ba27-25e6-44e5-91b8-6b602ae891f3
