@@ -75,6 +75,7 @@ def import_ical_feed_using_helpers(
     *,
     org_id: int,
     category_id: int,
+    calendar_source_id: int,
     semester: Optional[str] = None,
     default_event_type: Optional[str] = None,   # e.g. "CLUB"/"ACADEMIC"/"CAREER"/"OH"/NONE
     source_url: Optional[str] = None,
@@ -134,14 +135,15 @@ def import_ical_feed_using_helpers(
             default_event_type=default_event_type,
             source_url=source_url,
             user_id=user_id,
-            semester=semester
+            semester=semester,
+            calendar_source_id=calendar_source_id
         )
         if event_id:
             event_ids.append(event_id)
 
     # 4) Optionally delete events no longer present
     if delete_missing_uids:
-        existing_uids = {row[0] for row in db_session.query(Event.ical_uid).filter(Event.org_id==org_id, Event.category_id==category_id).all()}
+        existing_uids = {row[0] for row in db_session.query(Event.ical_uid).filter(Event.calendar_source_id == calendar_source_id).all()}
         missing = list(existing_uids - incoming_uids)
         if missing:
             db_session.query(Event).filter(Event.ical_uid.in_(missing)).delete(synchronize_session=False)
@@ -212,6 +214,7 @@ def sync_ical_source(db: Session, source_id: int) -> str:
             result = import_ical_feed_using_helpers(
                 db_session=db,
                 ical_text_or_url=body,
+                calendar_source_id=source.id,
                 org_id=source.org_id,
                 category_id=source.category_id,
                 default_event_type=source.default_event_type,
@@ -255,20 +258,20 @@ def sync_ical_source(db: Session, source_id: int) -> str:
 
 
 def _process_uid_group_with_helpers(
+    *,
     db_session,
     uid: str,
     calendar_tz: ZoneInfo,
     components: List,
     now: datetime,
     horizon: datetime,
-    *,
+    calendar_source_id: int,
     org_id: int,
     category_id: int,
     default_event_type: Optional[str],
     source_url: Optional[str],
-    # user_edited: Optional[bool],
     user_id: Optional[int],
-    semester: Optional[str]
+    semester: Optional[str],
 ):
     # Split: base components (no RECURRENCE-ID) vs overrides
     base_candidates = [c for c in components if not c.get("RECURRENCE-ID")]
@@ -310,7 +313,7 @@ def _process_uid_group_with_helpers(
 
     # --- DEDUPE LOOKUP (scope by org+category; add source_id if you have it) ---
     existing = (db_session.query(Event)
-                .filter_by(org_id=org_id, category_id=category_id, ical_uid=uid)
+                .filter_by(calendar_source_id=calendar_source_id, ical_uid=uid)
                 .first())
     
     changed = _should_update(existing, seq, last_modified)
@@ -332,6 +335,7 @@ def _process_uid_group_with_helpers(
             existing.source_url = source_url
             existing.event_type = default_event_type
             existing.semester = event_semester
+            existing.calendar_source_id = calendar_source_id
 
             user_edited = existing.user_edited if existing.user_edited else []
             user_edited.append(user_id)
@@ -365,6 +369,7 @@ def _process_uid_group_with_helpers(
             semester=event_semester,
             user_edited=[user_id]
         )
+        event.calendar_source_id = calendar_source_id
         db_session.flush()
         # Add iCal metadata directly on the persisted model
         event.ical_uid = uid
@@ -689,12 +694,10 @@ def delete_events_for_calendar_source(
     if not calendar_source:
         raise ValueError("CalendarSource not found")
 
-    source_url = calendar_source.url
-
     # Collect event IDs once
     event_id_list = (
         db.query(Event.id)
-        .filter(Event.source_url == source_url)
+        .filter(Event.calendar_source_id == calendar_source_id)
         .all()
     )
     event_id_list = [eid for (eid,) in event_id_list]

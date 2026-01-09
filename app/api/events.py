@@ -170,21 +170,6 @@ def read_gcal_link():
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        ics_message = import_ical_feed_using_helpers(
-            db_session=db,
-            ical_text_or_url=gcal_link,
-            org_id=org_id,
-            category_id=category_id,
-            semester=semester,
-            default_event_type=event_type,
-            user_id=user.id,
-            source_url=gcal_link
-        )
-        print(ics_message)
-        # Handle parse-level failure
-        if ics_message.get("success") is False:
-            return jsonify(ics_message), 400
-
         # Ensure CalendarSource exists (category ⟶ many sources), 
         # store the gcal link if it is not already stored
         calendar_source = (
@@ -213,6 +198,25 @@ def read_gcal_link():
                 calendar_source.notes = notes
             if event_type is not None:
                 calendar_source.default_event_type = event_type
+            if calendar_source.active is False:
+                calendar_source.active = True
+        db.flush()
+
+        ics_message = import_ical_feed_using_helpers(
+            db_session=db,
+            ical_text_or_url=gcal_link,
+            org_id=org_id,
+            category_id=category_id,
+            semester=semester,
+            default_event_type=event_type,
+            user_id=user.id,
+            source_url=gcal_link,
+            calendar_source_id=calendar_source.id
+        )
+        print(ics_message)
+        # Handle parse-level failure
+        if ics_message.get("success") is False:
+            return jsonify(ics_message), 400
 
         db.commit()  # Only commit if all succeeded
         return jsonify({

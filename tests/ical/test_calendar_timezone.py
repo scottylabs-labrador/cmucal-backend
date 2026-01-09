@@ -36,10 +36,14 @@ def test_normalize_floating_dtstart():
     assert dt.hour == 18
 
 
-def test_gcal_import_event_time(db, org_factory, category_factory, user_factory):
+def test_gcal_import_event_time(
+    db, org_factory, category_factory, user_factory, calendar_source_factory
+):
     org = org_factory()
     category = category_factory(org_id=org.id)
     user = user_factory()
+
+    source = calendar_source_factory(org=org, category=category)
 
     ics = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -58,6 +62,7 @@ END:VCALENDAR
         ical_text_or_url=ics,
         org_id=org.id,
         category_id=category.id,
+        calendar_source_id=source.id,  # ✅ REQUIRED
         default_event_type="CLUB",
         user_id=user.id,
     )
@@ -66,19 +71,20 @@ END:VCALENDAR
 
     event = db.query(Event).filter_by(ical_uid="test-gcal-1").one()
 
-    # Stored in UTC
     assert event.start_datetime.tzinfo is not None
     assert event.start_datetime.hour == 22  # 18 EDT → 22 UTC
 
-    # Convert back to local
     local = event.start_datetime.astimezone(ZoneInfo("America/New_York"))
     assert local.hour == 18
 
 
-def test_gcal_weekly_recurrence_hour_stable(db, org_factory, category_factory, user_factory):
+def test_gcal_weekly_recurrence_hour_stable(
+    db, org_factory, category_factory, user_factory, calendar_source_factory
+):
     org = org_factory()
     category = category_factory(org_id=org.id)
     user = user_factory()
+    source = calendar_source_factory(org=org, category=category)
 
     ics = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -98,16 +104,12 @@ END:VCALENDAR
         ical_text_or_url=ics,
         org_id=org.id,
         category_id=category.id,
+        calendar_source_id=source.id,
         default_event_type="CLUB",
         user_id=user.id,
     )
 
-    occs = (
-        db.query(EventOccurrence)
-        .order_by(EventOccurrence.start_datetime)
-        .all()
-    )
-
+    occs = db.query(EventOccurrence).order_by(EventOccurrence.start_datetime).all()
     assert len(occs) == 3
 
     for occ in occs:
@@ -115,10 +117,13 @@ END:VCALENDAR
         assert local.hour == 18
 
 
-def test_recurrence_override_matches_exact_hour(db, org_factory, category_factory, user_factory):
+def test_recurrence_override_matches_exact_hour(
+    db, org_factory, category_factory, user_factory, calendar_source_factory
+):
     org = org_factory()
     category = category_factory(org_id=org.id)
     user = user_factory()
+    source = calendar_source_factory(org=org, category=category)
 
     ics = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -141,15 +146,12 @@ END:VCALENDAR
         ical_text_or_url=ics,
         org_id=org.id,
         category_id=category.id,
+        calendar_source_id=source.id,
         default_event_type="CLUB",
         user_id=user.id,
     )
 
-    occs = (
-        db.query(EventOccurrence)
-        .order_by(EventOccurrence.start_datetime)
-        .all()
-    )
+    occs = db.query(EventOccurrence).order_by(EventOccurrence.start_datetime).all()
 
     hours = [
         occ.start_datetime.astimezone(ZoneInfo("America/New_York")).hour

@@ -10,6 +10,7 @@ def event_factory(db, org_factory, category_factory):
     def create_event(**kwargs):
         org = kwargs.pop("org", None) or org_factory()
         category = kwargs.pop("category", None) or category_factory(org_id=org.id)
+        calendar_source_id = kwargs.pop("calendar_source_id", None)
 
         start = kwargs.pop(
             "start_datetime",
@@ -19,6 +20,7 @@ def event_factory(db, org_factory, category_factory):
         event = Event(
             org_id=org.id,
             category_id=category.id,
+            calendar_source_id=calendar_source_id,
             title=kwargs.pop("title", "Test Event"),
             description=kwargs.pop("description", None),
             location=kwargs.pop("location", "Test Location"),
