@@ -111,3 +111,65 @@ def test_dst_transition_new_york():
         tzinfo=ZoneInfo("America/New_York")
     )
     assert start == expected
+
+def test_event_and_rrule_timezone_consistency():
+    soc = make_soc("Pittsburgh, Pennsylvania")
+
+    org_id_by_key = {("15112", "Spring_26"): 1}
+    category_id_by_org = {1: 10}
+
+    events, rrules = build_events_and_rrules(
+        [soc],
+        org_id_by_key,
+        category_id_by_org,
+    )
+
+    event = events[0]
+    rrule = rrules[0]
+
+    # --- Event checks ---
+    assert event["start_datetime"].tzinfo is not None
+    assert event["end_datetime"].tzinfo is not None
+    assert event["start_datetime"].tzinfo.key == "America/New_York"
+
+    # --- RRULE checks ---
+    assert rrule["start_datetime"].tzinfo is not None
+    assert rrule["start_datetime"].tzinfo.key == "America/New_York"
+
+    # RRULE should match event local wall-clock time
+    assert rrule["start_datetime"].hour == event["start_datetime"].hour
+    assert rrule["start_datetime"].minute == event["start_datetime"].minute
+
+def test_rrule_dst_transition_new_york():
+    soc = make_soc("Pittsburgh, Pennsylvania")
+
+    org_id_by_key = {("15112", "Spring_26"): 1}
+    category_id_by_org = {1: 10}
+
+    # ---- Pre-DST (EST) ----
+    soc.sem_start = datetime(2026, 1, 12)  # EST
+    events, rrules = build_events_and_rrules(
+        [soc],
+        org_id_by_key,
+        category_id_by_org,
+    )
+
+    rrule_start = rrules[0]["start_datetime"]
+
+    assert rrule_start.utcoffset().total_seconds() == -5 * 3600
+    assert rrule_start.isoformat().endswith("-05:00")
+    assert rrule_start.hour == 9
+
+    # ---- Post-DST (EDT) ----
+    soc.sem_start = datetime(2026, 3, 30)  # EDT
+    events, rrules = build_events_and_rrules(
+        [soc],
+        org_id_by_key,
+        category_id_by_org,
+    )
+
+    rrule_start = rrules[0]["start_datetime"]
+
+    assert rrule_start.utcoffset().total_seconds() == -4 * 3600
+    assert rrule_start.isoformat().endswith("-04:00")
+    assert rrule_start.hour == 9
