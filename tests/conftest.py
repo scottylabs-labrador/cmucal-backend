@@ -71,3 +71,4 @@ from tests.factories.org_factory import *
 from tests.factories.admin_factory import *
 from tests.factories.course_factory import *
 from tests.factories.course_agent_state_factory import *
+from tests.factories.category_factory import *

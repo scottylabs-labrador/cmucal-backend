@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
+from dateutil.parser import isoparse
 
 DEFAULT_TZ = ZoneInfo("America/New_York")  # pick what’s right for your feed
 
@@ -95,6 +96,15 @@ def _ensure_aware(dt):
         dt = datetime(dt.year, dt.month, dt.day)
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+def ensure_aware_datetime(dt):
+    if isinstance(dt, str):
+        dt = isoparse(dt)
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
     return dt
 
 def _parse_iso(iso_str: Optional[str]) -> Optional[datetime]:

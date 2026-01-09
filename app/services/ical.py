@@ -1,6 +1,7 @@
 from icalendar import Calendar
 
 from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz, infer_semester_from_datetime, parsed_httpdate_to_dt
+from zoneinfo import ZoneInfo
 
 from datetime import datetime, timedelta, timezone, date
 from typing import Dict, List, Optional
@@ -22,6 +23,50 @@ from app.models.event_occurrence import populate_event_occurrences, save_event_o
 from app.models.event import save_event
 
 LOOKAHEAD_DAYS = 180  # window for generating occurrences
+
+def normalize_ics_datetime(dt, calendar_tz: ZoneInfo):
+    """
+    Normalize datetime parsed from ICS.
+
+    Rules:
+    - If dt is floating (tzinfo is None): interpret in calendar_tz
+    - If dt has tzinfo: trust it (do NOT re-localize)
+    - Convert to UTC only at persistence time, DO NOT convert to UTC here
+    """
+    if dt.tzinfo is None:
+        # Floating time → calendar local time
+        dt = dt.replace(tzinfo=calendar_tz)
+
+    return dt
+
+def get_calendar_timezone(cal: Calendar) -> Optional[ZoneInfo]:
+    """
+    Derive calendar timezone from an ICS Calendar object.
+    Should work for Google Calendar, Apple Calendar, Outlook, most RFC-compliant ICS feeds.
+
+    Priority:
+    1. X-WR-TIMEZONE (Google, Apple)
+    2. VTIMEZONE TZID
+    """
+
+    # X-WR-TIMEZONE (most common for Google Calendar)
+    tzname = cal.get("X-WR-TIMEZONE")
+    if tzname:
+        try:
+            return ZoneInfo(str(tzname))
+        except Exception:
+            pass
+
+    # VTIMEZONE component
+    for component in cal.walk("VTIMEZONE"):
+        tzid = component.get("TZID")
+        if tzid:
+            try:
+                return ZoneInfo(str(tzid))
+            except Exception:
+                pass
+
+    return None
 
 def import_ical_feed_using_helpers(
     db_session,
@@ -51,6 +96,11 @@ def import_ical_feed_using_helpers(
             "error": "ICAL_PARSE_ERROR",
             "message": "The calendar data could not be parsed as a valid iCal file.",
         }
+    
+    calendar_tz = (
+        get_calendar_timezone(cal)
+        or ZoneInfo("UTC")  # last-resort fallback
+    )
 
     event_ids = []
 
@@ -74,6 +124,7 @@ def import_ical_feed_using_helpers(
         event_id = _process_uid_group_with_helpers(
             db_session=db_session,
             uid=uid,
+            calendar_tz=calendar_tz,
             components=components,
             now=now,
             horizon=horizon,
@@ -205,6 +256,7 @@ def sync_ical_source(db: Session, source_id: int) -> str:
 def _process_uid_group_with_helpers(
     db_session,
     uid: str,
+    calendar_tz: ZoneInfo,
     components: List,
     now: datetime,
     horizon: datetime,
@@ -236,8 +288,11 @@ def _process_uid_group_with_helpers(
 
 
     # Base fields
-    dtstart = decoded_dt_with_tz(base, "DTSTART")  # aware datetime or date
-    dtend   = decoded_dt_with_tz(base, "DTEND")
+    raw_dtstart = decoded_dt_with_tz(base, "DTSTART")
+    raw_dtend   = decoded_dt_with_tz(base, "DTEND")
+    dtstart = normalize_ics_datetime(raw_dtstart, calendar_tz)
+    dtend   = normalize_ics_datetime(raw_dtend, calendar_tz) if raw_dtend else None
+
     is_all_day = _is_all_day_component(base)
 
     # Convert to ISO strings for your helper
@@ -326,7 +381,11 @@ def _process_uid_group_with_helpers(
         # NOTE: all datetimes passed as ISO
         until_val = (rrule.get("UNTIL") or [None])[0]
         # icalendar may give UNTIL as date/datetime; convert to ISO string if present
-        until_iso = _to_iso_for_helper(until_val, _looks_like_date(until_val)) if until_val else None
+        if until_val:
+            until_dt = normalize_ics_datetime(until_val, calendar_tz)
+            until_iso = until_dt.isoformat()
+        else:
+            until_iso = None
         by_day = rrule.get("BYDAY", [])
         if isinstance(by_day, str):
             by_day = [by_day]  # Wrap in list if single string
@@ -399,9 +458,10 @@ def _process_uid_group_with_helpers(
         # Iterate safely
         for ex in exdate_entries:
             for ex_date in ex.dts:
+                ex_dt = normalize_ics_datetime(ex_date.dt, calendar_tz)
                 db_session.add(RecurrenceExdate(
                     rrule_id=rule.id,
-                    exdate=_ensure_aware(ex_date.dt).astimezone(timezone.utc)
+                    exdate=ex_dt.astimezone(timezone.utc)
                 ))
 
         # ---- Safe RDATE normalization ----
@@ -434,9 +494,10 @@ def _process_uid_group_with_helpers(
             rid = oc.get("RECURRENCE-ID")
             if not rid:
                 continue
+            rid_dt = normalize_ics_datetime(rid.dt, calendar_tz)
             db_session.add(EventOverride(
                 rrule_id=rule.id,
-                recurrence_date=_ensure_aware(rid.dt),
+                recurrence_date=rid_dt,
                 new_start=decoded_dt_with_tz(oc, "DTSTART"),
                 new_end=decoded_dt_with_tz(oc, "DTEND"),
                 new_title=str(oc.get("SUMMARY") or None),
@@ -462,7 +523,7 @@ def _process_uid_group_with_helpers(
         if changed or not _has_occurrence(db_session, event.id, _ensure_aware(dtstart).astimezone(timezone.utc), _ensure_aware(dtend).astimezone(timezone.utc) if dtend else _ensure_aware(dtstart).astimezone(timezone.utc)):
 
         # Write a single occurrence via your helper
-            event_saved_at = getattr(event, "last_updated_at", datetime.utcnow())
+            event_saved_at = getattr(event, "last_updated_at", datetime.now(timezone.utc))
 
             save_event_occurrence(
                 db_session,

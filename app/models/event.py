@@ -5,7 +5,7 @@ from app.models.models import Event
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 import requests
-from app.utils.date import infer_semester_from_datetime
+from app.utils.date import ensure_aware_datetime, infer_semester_from_datetime
 from app.models.models import Event, RecurrenceRule, EventOccurrence, RecurrenceRdate, RecurrenceExdate, EventOverride
 
 ### need to check type of start_datetime, end_datetime before using them
@@ -29,6 +29,9 @@ def save_event(db, org_id: int, category_id: int, title: str, start_datetime: st
     Returns:
         The created Event object.
     """
+    start_dt = ensure_aware_datetime(start_datetime)
+    end_dt   = ensure_aware_datetime(end_datetime)
+    
     if semester is None:
         semester = infer_semester_from_datetime(start_datetime)
         
@@ -37,8 +40,8 @@ def save_event(db, org_id: int, category_id: int, title: str, start_datetime: st
         category_id=category_id,
         title=title,
         description=description,
-        start_datetime=start_datetime,
-        end_datetime=end_datetime,
+        start_datetime=start_dt,
+        end_datetime=end_dt,
         is_all_day=is_all_day,
         location=location,
         semester=semester,
