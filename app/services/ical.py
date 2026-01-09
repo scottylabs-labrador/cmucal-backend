@@ -401,7 +401,7 @@ def _process_uid_group_with_helpers(
             for ex_date in ex.dts:
                 db_session.add(RecurrenceExdate(
                     rrule_id=rule.id,
-                    exdate=_ensure_aware(ex_date.dt)
+                    exdate=_ensure_aware(ex_date.dt).astimezone(timezone.utc)
                 ))
 
         # ---- Safe RDATE normalization ----
@@ -424,7 +424,7 @@ def _process_uid_group_with_helpers(
             for rd in entry.dts:
                 db_session.add(RecurrenceRdate(
                     rrule_id=rule.id,
-                    rdate=_ensure_aware(rd.dt)
+                    rdate=_ensure_aware(rd.dt).astimezone(timezone.utc)
                 ))
                 db_session.flush()
 
@@ -459,7 +459,7 @@ def _process_uid_group_with_helpers(
             db_session.delete(old_rule)
             db_session.flush()
         
-        if changed or not _has_occurrence(db_session, event.id, _ensure_aware(dtstart), _ensure_aware(dtend) if dtend else _ensure_aware(dtstart)):
+        if changed or not _has_occurrence(db_session, event.id, _ensure_aware(dtstart).astimezone(timezone.utc), _ensure_aware(dtend).astimezone(timezone.utc) if dtend else _ensure_aware(dtstart).astimezone(timezone.utc)):
 
         # Write a single occurrence via your helper
             event_saved_at = getattr(event, "last_updated_at", datetime.utcnow())

@@ -75,6 +75,8 @@ def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
             lecture_days="".join(sorted(all_days)),
             sem_start=soc0.sem_start,
             sem_end=soc0.sem_end,
+            start_time=parse_soc_time(time_start),
+            tz=tz,
         )
 
         if rrule:

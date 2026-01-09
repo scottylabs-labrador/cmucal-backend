@@ -9,7 +9,6 @@ from dateutil.rrule import (
 )
 from typing import List, Optional, Union
 from dateutil.parser import parse as parse_datetime
-from app.utils.date import _ensure_aware
 
 def add_recurrence_rule(db, event_id: int, frequency: FrequencyType,  
                         interval: int, start_datetime: str, count: int = None, until: str = None, 
@@ -106,6 +105,9 @@ def get_rrule_from_db_rule(rule) -> rrule:
     Assumes `rule` has attributes: frequency, interval, start_datetime, count, until,
     by_day (List[str]), by_month (int or List[int]), by_month_day (int or List[int]).
     """
+    assert rule.start_datetime.tzinfo is not None, \
+        "RRULE start_datetime must be tz-aware"
+    
     freq_map = {
         'DAILY': DAILY,
         'WEEKLY': WEEKLY,

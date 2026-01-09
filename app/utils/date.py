@@ -74,6 +74,19 @@ def decoded_dt_with_tz(component, key: str, default_tz: ZoneInfo = DEFAULT_TZ):
 
     return None
 
+def normalize_occurrence(occ_start: datetime, event_tz):
+    if occ_start.tzinfo is None:
+        return occ_start.replace(tzinfo=event_tz)
+    return occ_start.astimezone(event_tz)
+
+def normalize_set_to_tz(dts, tz):
+    out = set()
+    for dt in dts:
+        if dt.tzinfo is None:
+            out.add(dt.replace(tzinfo=tz))
+        else:
+            out.add(dt.astimezone(tz))
+    return out
 
 def _ensure_aware(dt):
     if dt is None:

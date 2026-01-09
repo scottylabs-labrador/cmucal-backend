@@ -10,10 +10,10 @@ from app.models.event_tag import save_event_tag, get_tags_by_event, delete_event
 from app.models.recurrence_rule import add_recurrence_rule
 from app.models.event_occurrence import populate_event_occurrences, regenerate_event_occurrences_by_event_ids, save_event_occurrence
 from app.models.category import category_to_dict, get_category_by_id
-from app.models.models import CalendarSource, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag
+from app.models.models import Academic, CalendarSource, Career, Club, Event, RecurrenceRule, UserSavedEvent, Organization, EventOccurrence, EventTag, Category, Tag, RecurrenceExdate, RecurrenceRdate, EventOverride, RecurrenceOverride
 import pprint
 from datetime import datetime, timezone
-from sqlalchemy import cast, Date, or_
+from sqlalchemy import cast, Date, or_, delete, select
 
 from app.services.ical import import_ical_feed_using_helpers
 from app.errors.ical import ICalFetchError
@@ -353,6 +353,8 @@ def regenerate_occurrences_by_events():
 
         regenerated, skipped = regenerate_event_occurrences_by_event_ids(db, event_ids)
 
+        print("Before commit, occurrences count:", db.query(EventOccurrence).count())
+        
         db.commit()
 
         return jsonify({
@@ -505,45 +507,110 @@ def batch_delete_events_by_params():
     db = g.db
     try:
         data = request.get_json()
-        semester = data.get("semester", None)
-        org_id = data.get("org_id", None)
-        category_id = data.get("category_id", None)
-        event_type = data.get("event_type", None)
-        source_url = data.get("source_url", None)
-        print(f"called batch_delete_events_by_params:\n semester={semester}, org_id={org_id}, category_id={category_id}, event_type={event_type}, source_url={source_url}")
 
-        if not any([org_id, category_id, semester, event_type, source_url]):
+        semester = data.get("semester")
+        org_id = data.get("org_id")
+        category_id = data.get("category_id")
+        event_type = data.get("event_type")
+        source_url = data.get("source_url")
+
+        if not any([semester, org_id, category_id, event_type, source_url]):
             return jsonify({"error": "At least one filter must be provided"}), 400
 
-        query = db.query(Event)
+        # --------------------------------------------------
+        # 1. Build event ID subquery
+        # --------------------------------------------------
+        event_ids = select(Event.id)
 
-        if org_id:
-            query = query.filter(Event.org_id == org_id)
-        if category_id:
-            query = query.filter(Event.category_id == category_id)
         if semester:
-            query = query.filter(Event.semester == semester)
+            event_ids = event_ids.where(Event.semester == semester)
+        if org_id:
+            event_ids = event_ids.where(Event.org_id == org_id)
+        if category_id:
+            event_ids = event_ids.where(Event.category_id == category_id)
         if event_type:
-            query = query.filter(Event.event_type == event_type)
+            event_ids = event_ids.where(Event.event_type == event_type)
         if source_url:
-            query = query.filter(Event.source_url == source_url)
+            event_ids = event_ids.where(Event.source_url == source_url)
 
-        events = query.all()
-
-        if not events:
+        # Materialize once (for counts + reuse)
+        event_id_list = db.execute(event_ids).scalars().all()
+        if not event_id_list:
             return jsonify({"status": "no events matched"}), 200
 
-        deleted_ids = [e.id for e in events]
+        event_id_subq = select(Event.id).where(Event.id.in_(event_id_list))
 
-        for event in events:
-            db.delete(event)
+        # --------------------------------------------------
+        # 2. Delete Event-level children
+        # --------------------------------------------------
+        print(f"Deleting dependent rows for {len(event_id_list)} events")
+        db.execute(
+            delete(EventOccurrence).where(EventOccurrence.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(EventTag).where(EventTag.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(UserSavedEvent).where(UserSavedEvent.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(Academic).where(Academic.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(Career).where(Career.event_id.in_(event_id_subq))
+        )
+        db.execute(
+            delete(Club).where(Club.event_id.in_(event_id_subq))
+        )
+        # --------------------------------------------------
+        # 3. Handle recurrence hierarchy
+        # --------------------------------------------------
+        rrule_ids = select(RecurrenceRule.id).where(
+            RecurrenceRule.event_id.in_(event_id_subq)
+        )
+        db.execute(
+            delete(RecurrenceExdate).where(
+                RecurrenceExdate.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(RecurrenceRdate).where(
+                RecurrenceRdate.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(EventOverride).where(
+                EventOverride.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(RecurrenceOverride).where(
+                RecurrenceOverride.rrule_id.in_(rrule_ids)
+            )
+        )
+
+        db.execute(
+            delete(RecurrenceRule).where(
+                RecurrenceRule.id.in_(rrule_ids)
+            )
+        )
+
+        # --------------------------------------------------
+        # 4. Delete events
+        # --------------------------------------------------
+        db.execute(
+            delete(Event).where(Event.id.in_(event_id_subq))
+        )
 
         db.commit()
 
         return jsonify({
             "status": "ok",
-            "deleted_events": len(deleted_ids),
-            "event_ids": deleted_ids,
+            "deleted_events": len(event_id_list),
+            "event_ids": event_id_list,
         }), 200
 
     except Exception as e:

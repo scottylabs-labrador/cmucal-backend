@@ -17,11 +17,8 @@
 * If need to delete, run this:
 ```
 curl -X DELETE http://localhost:5001/api/events/batch_delete_events_by_params \
-  -H "Content-Type: application/json" \
-  -d '{
-    "semester": "Spring_26",
-    "source_url": "https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule"
-  }'
+-H "Content-Type: application/json" \
+--data-raw '{"semester":"Spring_26","source_url":"https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule"}'
 ```
 
 ## Production Environment

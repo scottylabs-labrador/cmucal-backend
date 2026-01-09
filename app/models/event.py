@@ -50,6 +50,7 @@ def save_event(db, org_id: int, category_id: int, title: str, start_datetime: st
     db.flush()      # Allocate event.id without committing
     return event
 
+
 def get_event_by_id(db, event_id: int):
     """
     Retrieve an event by its ID.
