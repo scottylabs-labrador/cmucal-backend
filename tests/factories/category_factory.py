@@ -10,6 +10,6 @@ def category_factory(db):
             **kwargs,
         )
         db.add(category)
-        db.commit()
+        db.flush()
         return category
     return create_category

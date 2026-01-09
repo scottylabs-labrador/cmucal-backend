@@ -1,5 +1,7 @@
 from app.models.models import CalendarSource
 from typing import Optional
+from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
 def create_calendar_source(
     db_session,
@@ -26,4 +28,37 @@ def create_calendar_source(
 
     db_session.add(calendar_source)
     db_session.flush()
+    return calendar_source
+
+
+def deactivate_calendar_source(
+    db: Session,
+    calendar_source_id: int,
+) -> CalendarSource:
+    """
+    Mark a CalendarSource as inactive.
+
+    - Acquires a row-level lock
+    - Updates active flag and updated_at
+    - Does NOT commit (caller controls transaction)
+
+    Returns:
+        The updated CalendarSource
+    """
+
+    calendar_source = (
+        db.query(CalendarSource)
+        .filter(CalendarSource.id == calendar_source_id)
+        .with_for_update()
+        .one_or_none()
+    )
+
+    if not calendar_source:
+        raise ValueError("CalendarSource not found")
+
+    if calendar_source.active:
+        calendar_source.active = False
+        calendar_source.updated_at = datetime.now(timezone.utc)
+
+    db.flush()
     return calendar_source

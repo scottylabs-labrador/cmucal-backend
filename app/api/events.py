@@ -15,7 +15,7 @@ import pprint
 from datetime import datetime, timezone
 from sqlalchemy import cast, Date, or_, delete, select
 
-from app.services.ical import import_ical_feed_using_helpers
+from app.services.ical import delete_events_for_calendar_source, import_ical_feed_using_helpers
 from app.errors.ical import ICalFetchError
 from app.models.calendar_source import create_calendar_source
 
@@ -239,6 +239,40 @@ def read_gcal_link():
             "error": "INTERNAL_SERVER_ERROR",
             "message": str(e),
         }), 500
+
+@events_bp.route("/delete_events_and_deactivate_calendar", methods=["DELETE"])
+def delete_events_and_deactivate_calendar():
+    """Deletes all events associated with a calendar source ID and deactivates it"""
+    db = g.db
+    try:
+        data = request.get_json()
+        calendar_source_id = data.get("calendar_source_id")
+
+        if not calendar_source_id:
+            return jsonify({"error": "Missing calendar_source_id"}), 400
+
+        deleted_event_ids = delete_events_for_calendar_source(
+            db=db,
+            calendar_source_id=calendar_source_id,
+        )
+
+        db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "calendar_source_id": calendar_source_id,
+            "deleted_events": len(deleted_event_ids),
+            "event_ids": deleted_event_ids,
+        }), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
 
 # @events_bp.route("/generate_more_occurrences", methods=["POST"])
 # def generate_more_occurrences():

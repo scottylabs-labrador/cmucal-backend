@@ -1,7 +1,9 @@
 from icalendar import Calendar
 
+from app.models.calendar_source import deactivate_calendar_source
 from app.utils.date import _ensure_aware, _parse_iso, decoded_dt_with_tz, infer_semester_from_datetime, parsed_httpdate_to_dt
 from zoneinfo import ZoneInfo
+from sqlalchemy import select, delete
 
 from datetime import datetime, timedelta, timezone, date
 from typing import Dict, List, Optional
@@ -9,7 +11,6 @@ import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 from app.errors.ical import ICalFetchError
 import os
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 import hashlib
 
@@ -647,3 +648,125 @@ def _pick_base_component(bases: List):
     if with_rrule:
         return with_rrule[0]
     return sorted(bases, key=lambda b: decoded_dt_with_tz(b, "DTSTART"))[0]
+
+from app.models.models import (
+    Event,
+    CalendarSource,
+    EventOccurrence,
+    EventTag,
+    UserSavedEvent,
+    Academic,
+    Career,
+    Club,
+    RecurrenceRule,
+    RecurrenceExdate,
+    RecurrenceRdate,
+    EventOverride,
+    RecurrenceOverride,
+)
+
+
+def delete_events_for_calendar_source(
+    db: Session,
+    calendar_source_id: int,
+) -> list[int]:
+    """
+    Delete all events associated with a CalendarSource, including
+    all dependent rows, and deactivate the CalendarSource.
+
+    Returns:
+        List of deleted event IDs.
+    """
+
+    # Lock and fetch calendar source
+    calendar_source = (
+        db.query(CalendarSource)
+        .filter(CalendarSource.id == calendar_source_id)
+        .with_for_update()
+        .one_or_none()
+    )
+
+    if not calendar_source:
+        raise ValueError("CalendarSource not found")
+
+    source_url = calendar_source.url
+
+    # Collect event IDs once
+    event_id_list = (
+        db.query(Event.id)
+        .filter(Event.source_url == source_url)
+        .all()
+    )
+    event_id_list = [eid for (eid,) in event_id_list]
+
+    if not event_id_list:
+        # Still deactivate calendar source
+        calendar_source.active = False
+        calendar_source.updated_at = datetime.now(timezone.utc)
+        db.flush()
+        return []
+
+    event_id_subq = select(Event.id).where(Event.id.in_(event_id_list))
+
+    # Delete Event-level children
+    db.execute(
+        delete(EventOccurrence).where(EventOccurrence.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(EventTag).where(EventTag.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(UserSavedEvent).where(UserSavedEvent.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(Academic).where(Academic.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(Career).where(Career.event_id.in_(event_id_subq))
+    )
+    db.execute(
+        delete(Club).where(Club.event_id.in_(event_id_subq))
+    )
+
+    # Handle recurrence hierarchy
+    rrule_ids = (
+        select(RecurrenceRule.id)
+        .where(RecurrenceRule.event_id.in_(event_id_subq))
+    )
+
+    db.execute(
+        delete(RecurrenceExdate).where(
+            RecurrenceExdate.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(RecurrenceRdate).where(
+            RecurrenceRdate.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(EventOverride).where(
+            EventOverride.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(RecurrenceOverride).where(
+            RecurrenceOverride.rrule_id.in_(rrule_ids)
+        )
+    )
+    db.execute(
+        delete(RecurrenceRule).where(
+            RecurrenceRule.id.in_(rrule_ids)
+        )
+    )
+
+    # Delete events
+    db.execute(
+        delete(Event).where(Event.id.in_(event_id_subq))
+    )
+
+    # Deactivate calendar source
+    deactivate_calendar_source(db, calendar_source_id)
+
+    db.flush()
+    return event_id_list
