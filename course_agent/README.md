@@ -14,7 +14,7 @@ rather than a deterministic scraper.
 
 ---
 
-## 🎯 Goals
+## Goals
 
 For each CMU course:
 1. Discover candidate course websites using web search
@@ -24,7 +24,7 @@ For each CMU course:
 
 ---
 
-## 💭 Why Agentic AI?
+## Why Agentic AI?
 
 This task requires:
 - Search under uncertainty
@@ -37,12 +37,14 @@ A single script is brittle, while an agent can **observe → decide → act → 
 
 ---
 
-## 🏗 Architecture Overview
+## Architecture Overview
 To visualize LangGraph, run `python -m course_agent.scripts.visualize_graph` in root directory, then paste the content into [https://mermaid.live](https://mermaid.live).
+
+<img width="447" height="572" alt="course_agent_graph" src="https://github.com/user-attachments/assets/6d893a8c-6a8a-4e7d-8eb0-2581f44e63de" />
 
 ---
 
-## 🗃 Data Model (Supabase)
+## Data Model (Supabase)
 
 - `courses`: canonical course data (input)
 - `course_websites`: discovered candidate websites + confidence
@@ -53,7 +55,7 @@ Agent outputs are treated as **hypotheses**, not ground truth.
 
 ---
 
-## ⚙️ Setup
+## Setup
 
 ### 1. Install dependencies
 ```bash
