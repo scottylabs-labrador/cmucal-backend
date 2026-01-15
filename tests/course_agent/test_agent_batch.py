@@ -1,6 +1,7 @@
 from course_agent.app.agent.graph import build_course_agent
 
 def test_agent_runs_multiple_courses(
+    forbid_real_llm_calls,
     mocker,
     course_batch_factory,
 ):

@@ -11,6 +11,8 @@ from app import create_app
 from app.services.db import init_db
 from app.models.models import User, Organization
 from app.models.admin import create_admin
+import course_agent.app.agent.nodes.verify_site
+import course_agent.app.agent.nodes.critic
 
 
 # ---------- Flask App ----------
@@ -49,11 +51,15 @@ def db(engine):
         connection.close()
 
 # ---------- Forbid real LLM calls ----------
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def forbid_real_llm_calls(mocker):
     mocker.patch(
-        'course_agent.app.services.llm.get_llm',
-        side_effect=AssertionError('LLM accessed without mock')
+        "course_agent.app.agent.nodes.verify_site.llm",
+        side_effect=AssertionError("verify_site.llm accessed without mock"),
+    )
+    mocker.patch(
+        "course_agent.app.agent.nodes.critic.llm",
+        side_effect=AssertionError("critic.llm accessed without mock"),
     )
 
 # ---------- Forbid real Search API calls ----------

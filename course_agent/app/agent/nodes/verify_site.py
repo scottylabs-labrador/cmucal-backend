@@ -14,6 +14,8 @@ def verify_site_node(state: CourseAgentState):
     idx = state["current_url_index"]
     urls = state["candidate_urls"]
 
+    # If current iteration exceeds the length of candidate URLs, then 
+    # no valid site is found
     if idx >= len(urls):
         return {
             **state,
@@ -27,6 +29,7 @@ def verify_site_node(state: CourseAgentState):
 
     url = urls[idx]
     html = fetch_html(url)
+    # If fetching falls 
     if not html:
         return {
             **state,
@@ -35,6 +38,7 @@ def verify_site_node(state: CourseAgentState):
         }
     heur_score = heuristic_score(url, html)
 
+    # Show first 1500 words of html to llm
     snippet = html[:1500]
 
     print(f"html snippet length: {len(snippet)}")

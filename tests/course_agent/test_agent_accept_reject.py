@@ -1,4 +1,5 @@
 def test_agent_accepts_site_and_calendar(
+    forbid_real_llm_calls,
     mocker,
     ca_base_state,
 ):
@@ -66,6 +67,7 @@ def test_agent_accepts_site_and_calendar(
     assert state['ical_link'].endswith('.ics')
 
 def test_agent_rejects_first_site_and_continues(
+    forbid_real_llm_calls,
     mocker,
     ca_base_state,
 ):
@@ -119,6 +121,7 @@ def test_agent_rejects_first_site_and_continues(
     assert state['done'] is False
 
 def test_no_site_found_when_search_empty(
+    forbid_real_llm_calls,
     mocker,
     ca_base_state,
 ):
@@ -142,6 +145,7 @@ def test_no_site_found_when_search_empty(
     assert state['done'] is True
 
 def test_site_without_calendar(
+    forbid_real_llm_calls,
     mocker,
     ca_base_state,
 ):
