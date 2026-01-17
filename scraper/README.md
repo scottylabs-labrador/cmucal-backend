@@ -22,6 +22,10 @@ curl -X DELETE http://localhost:5001/api/events/batch_delete_events_by_params \
 --data-raw '{"semester":"Spring_26","source_url":"https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule"}'
 ```
 
+curl -X DELETE http://localhost:5001/api/events/batch_delete_events_by_params \
+-H "Content-Type: application/json" \
+--data-raw '{"semester":"Spring_26","source_url":"https://enr-apps.as.cmu.edu/open/SOC/SOCServlet/completeSchedule"}'
+
 ## Production Environment
 - created a cron job on Railway that calls `python -m scraper.scripts.export_soc`
 
