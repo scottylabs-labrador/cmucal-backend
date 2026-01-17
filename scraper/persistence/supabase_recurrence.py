@@ -26,7 +26,6 @@ def replace_recurrence_rules(db, rrules, event_id_by_identity):
         row = {
             **r,
             "event_id": event_id,
-            "start_datetime": start_dt,
         }
 
         row.pop("_identity")

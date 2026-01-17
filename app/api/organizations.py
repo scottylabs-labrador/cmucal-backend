@@ -4,6 +4,7 @@ from app.models.organization import create_organization, get_orgs_by_type, get_o
 from app.models.models import Organization
 from app.models.admin import create_admin, get_admin_by_org_and_user, get_admins_by_org
 from app.models.category import create_category, get_categories_by_org_id
+from app.services.ical import delete_events_for_calendar_source
 from app.utils.course_data import get_course_data
 
 
@@ -138,6 +139,44 @@ def create_category_record():
         import traceback
         print("❌ Exception:", traceback.format_exc())
         return jsonify({"error": str(e)}), 500
+
+
+@orgs_bp.route(
+    "/<int:org_id>/calendar-sources/<int:calendar_source_id>/events",
+    methods=["DELETE"]
+)
+def delete_events_and_deactivate_calendar(org_id: int, calendar_source_id: int):
+    """
+    Deletes all events associated with a calendar source
+    and deactivates the calendar source for the given org.
+
+    curl -X DELETE \
+    http://localhost:5001/api/organizations/<org_id>/calendar-sources/<calendar_source_id>/events
+    """
+    db = g.db
+    try:
+        deleted_event_ids = delete_events_for_calendar_source(
+            db=db,
+            calendar_source_id=calendar_source_id,
+        )
+
+        db.commit()
+
+        return jsonify({
+            "status": "ok",
+            "org_id": org_id,
+            "calendar_source_id": calendar_source_id,
+            "deleted_events": len(deleted_event_ids),
+            "event_ids": deleted_event_ids,
+        }), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+    except Exception as e:
+        import traceback
+        print("❌ Exception:", traceback.format_exc())
+        return jsonify({"error": "Internal server error"}), 500
 
 @orgs_bp.route("/create_test_clubs", methods=["POST"])
 def create_test_clubs():

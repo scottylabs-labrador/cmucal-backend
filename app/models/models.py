@@ -264,6 +264,7 @@ class CalendarSource(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'))
     created_by_user_id: Mapped[Optional[int]] = mapped_column(BigInteger)
     # relationships
+    events: Mapped[List['Event']] = relationship("Event", back_populates="calendar_source", cascade="all, delete-orphan", passive_deletes=True)
     category: Mapped['Category'] = relationship('Category', back_populates='calendar_sources')
     org: Mapped['Organization'] = relationship('Organization', back_populates='calendar_sources')
     
@@ -309,9 +310,10 @@ class SyncedEvent(Base):
 class Event(Base):
     __tablename__ = 'events'
     __table_args__ = (
+        ForeignKeyConstraint(['calendar_source_id'], ['calendar_sources.id'], ondelete='SET NULL', name='events_calendar_source_id_fkey'),
         ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE', name='events_category_id_fkey'),
         ForeignKeyConstraint(['org_id'], ['organizations.id'], ondelete='CASCADE', name='events_org_id_fkey'),
-        # PrimaryKeyConstraint('id', name='events_pkey')
+         # Dedupe SOC events only
         UniqueConstraint(
             "org_id",
             "title",
@@ -320,7 +322,9 @@ class Event(Base):
             "end_datetime",
             "location",
             name="events_unique_soc",
-        )
+        ),
+        # Hard guarantee for ICS imports
+        UniqueConstraint("calendar_source_id", "ical_uid", name="events_unique_calendar_uid"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1), primary_key=True)
@@ -329,12 +333,15 @@ class Event(Base):
     start_datetime: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     end_datetime: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     is_all_day: Mapped[bool] = mapped_column(Boolean)
+    event_timezone: Mapped[str] = mapped_column(Text, nullable=False)
     location: Mapped[str] = mapped_column(Text)
     # Can be UNKOWN but not null
     semester: Mapped[str] = mapped_column(Text)
     user_edited: Mapped[Optional[list]] = mapped_column(ARRAY(BigInteger()))
     org_id: Mapped[int] = mapped_column(BigInteger)
     category_id: Mapped[int] = mapped_column(BigInteger)
+    calendar_source_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+
     description: Mapped[Optional[str]] = mapped_column(Text)
     source_url: Mapped[Optional[str]] = mapped_column(Text)
     event_type: Mapped[Optional[str]] = mapped_column(Text)
@@ -345,12 +352,13 @@ class Event(Base):
     occurrences_valid_through: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True))
     last_occurrence_build_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True))
 
+    calendar_source: Mapped[Optional['CalendarSource']] = relationship('CalendarSource', back_populates='events')
     category: Mapped['Category'] = relationship('Category', back_populates='events')
     org: Mapped['Organization'] = relationship('Organization', back_populates='events')
-    event_occurrences: Mapped[List['EventOccurrence']] = relationship('EventOccurrence', back_populates='event')
-    event_tags: Mapped[List['EventTag']] = relationship('EventTag', back_populates='event')
-    recurrence_rules: Mapped[List['RecurrenceRule']] = relationship('RecurrenceRule', back_populates='event')
-    user_saved_events: Mapped[List['UserSavedEvent']] = relationship('UserSavedEvent', back_populates='event')
+    event_occurrences: Mapped[List['EventOccurrence']] = relationship('EventOccurrence', back_populates='event', passive_deletes=True)
+    event_tags: Mapped[List['EventTag']] = relationship('EventTag', back_populates='event', passive_deletes=True)
+    recurrence_rules: Mapped[List['RecurrenceRule']] = relationship('RecurrenceRule', back_populates='event', passive_deletes=True)
+    user_saved_events: Mapped[List['UserSavedEvent']] = relationship('UserSavedEvent', back_populates='event', passive_deletes=True)
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}

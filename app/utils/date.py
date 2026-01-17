@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
+from dateutil.parser import isoparse
 
 DEFAULT_TZ = ZoneInfo("America/New_York")  # pick what’s right for your feed
 
@@ -74,6 +75,19 @@ def decoded_dt_with_tz(component, key: str, default_tz: ZoneInfo = DEFAULT_TZ):
 
     return None
 
+def normalize_occurrence(occ_start: datetime, event_tz):
+    if occ_start.tzinfo is None:
+        return occ_start.replace(tzinfo=event_tz)
+    return occ_start.astimezone(event_tz)
+
+def normalize_set_to_tz(dts, tz):
+    out = set()
+    for dt in dts:
+        if dt.tzinfo is None:
+            out.add(dt.replace(tzinfo=tz))
+        else:
+            out.add(dt.astimezone(tz))
+    return out
 
 def _ensure_aware(dt):
     if dt is None:
@@ -84,6 +98,15 @@ def _ensure_aware(dt):
         return dt.replace(tzinfo=timezone.utc)
     return dt
 
+def ensure_aware_datetime(dt):
+    if isinstance(dt, str):
+        dt = isoparse(dt)
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    return dt
+
 def _parse_iso(iso_str: Optional[str]) -> Optional[datetime]:
     if not iso_str:
         return None
@@ -92,7 +115,7 @@ def _parse_iso(iso_str: Optional[str]) -> Optional[datetime]:
         iso_str = iso_str[:-1] + "+00:00"
     return datetime.fromisoformat(iso_str)
 
-def _parse_iso_aware(s: str = None):
+def _parse_iso_aware(s: str = None, timezone: ZoneInfo = None) -> Optional[datetime]:
     if not s:
         return None
     # Support trailing 'Z'
@@ -100,8 +123,11 @@ def _parse_iso_aware(s: str = None):
         s = s[:-1] + "+00:00"
     dt = datetime.fromisoformat(s) if isinstance(s, str) else s
     # Ensure tz-aware
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+    if timezone:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone)
+        else:
+            dt = dt.astimezone(timezone)
     return dt
 
 def convert_to_iso8601(dt_str):
