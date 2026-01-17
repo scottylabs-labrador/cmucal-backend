@@ -55,6 +55,16 @@ dependencies = [
     "google-auth",
     "google-auth-oauthlib",
 
+    # LLM / Agents
+    "langchain",
+    "langchain-openai",
+    "langgraph",
+    "openai",
+    "tiktoken",
+
+    # Visualization (LangGraph)
+    "graphviz",
+
     # Misc
     "inflect",
 ]
