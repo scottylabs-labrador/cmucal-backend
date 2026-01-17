@@ -550,6 +550,7 @@ def _process_uid_group_with_helpers(
                 recurrence="ONETIME",
                 event_saved_at=event_saved_at,
                 is_all_day=is_all_day,
+                event_timezone=str(calendar_tz),
                 user_edited=[user_id],
                 description=description or None,
                 location=location or None,

@@ -105,7 +105,7 @@ def delete_event_occurrences_by_event_id(db, event_id: int):
 ### need to check type of event_saved_at, start_datetime, end_datetime before using them
 def save_event_occurrence(db, event_id: int, org_id: int, category_id: int, title: str, 
                           start_datetime, end_datetime, recurrence: RecurrenceType,
-                          event_saved_at: str, 
+                          event_saved_at: str, event_timezone: str,
                           is_all_day: bool, user_edited: List[int], description: str = None, 
                           location: str = None, source_url: str = None):
     """
@@ -120,8 +120,9 @@ def save_event_occurrence(db, event_id: int, org_id: int, category_id: int, titl
     Returns:
         The created EventOccurrence object.
     """
-    start_dt = _parse_iso_aware(start_datetime) if isinstance(start_datetime, str) else start_datetime
-    end_dt   = _parse_iso_aware(end_datetime)   if isinstance(end_datetime, str)   else end_datetime
+    event_tz = ZoneInfo(event_timezone)
+    start_dt = _parse_iso_aware(start_datetime) if isinstance(start_datetime, str) else start_datetime.astimezone(event_tz)
+    end_dt   = _parse_iso_aware(end_datetime)   if isinstance(end_datetime, str)   else end_datetime.astimezone(event_tz)
     saved_at = _parse_iso_aware(event_saved_at) if isinstance(event_saved_at, str) else event_saved_at
 
     start_dt = start_dt.astimezone(timezone.utc)
