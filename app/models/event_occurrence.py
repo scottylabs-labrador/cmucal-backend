@@ -11,7 +11,7 @@ from typing import List, Dict, Tuple, Optional
 from copy import deepcopy
 from app.utils.date import _ensure_aware, _parse_iso_aware, normalize_occurrence, normalize_set_to_tz
 
-TRACE_EVENT_ID = 117815
+TRACE_EVENT_ID = None  # Set to an event ID to enable tracing
 
 def trace(event, *msg):
     if event and event.id == TRACE_EVENT_ID:
