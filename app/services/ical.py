@@ -27,18 +27,24 @@ LOOKAHEAD_DAYS = 180  # window for generating occurrences
 
 def normalize_ics_datetime(dt, calendar_tz: ZoneInfo):
     """
-    Normalize datetime parsed from ICS.
+    Normalize datetime or date parsed from ICS.
 
     Rules:
-    - If dt is floating (tzinfo is None): interpret in calendar_tz
+    - If dt is a DATE (all-day): treat as midnight in calendar_tz
+    - If dt is a floating datetime: interpret in calendar_tz
     - If dt has tzinfo: trust it (do NOT re-localize)
-    - Convert to UTC only at persistence time, DO NOT convert to UTC here
+    - Do NOT convert to UTC here
     """
-    if dt.tzinfo is None:
-        # Floating time → calendar local time
-        dt = dt.replace(tzinfo=calendar_tz)
+    if isinstance(dt, date) and not isinstance(dt, datetime):
+        # All-day date → midnight local time
+        return datetime(dt.year, dt.month, dt.day, tzinfo=calendar_tz)
 
-    return dt
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=calendar_tz)
+        return dt
+
+    raise TypeError(f"Unsupported ICS datetime type: {type(dt)}")
 
 def get_calendar_timezone(cal: Calendar) -> Optional[ZoneInfo]:
     """

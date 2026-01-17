@@ -58,6 +58,7 @@ def build_events_and_rrules(soc_rows, org_id_by_key, category_id_by_org):
             "end_datetime": end_dt,
             "location": location,
             "is_all_day": False,
+            "event_timezone": str(tz),
             "category_id": category_id,
             "description": description,
             "event_type": "ACADEMIC",
