@@ -149,6 +149,9 @@ def delete_events_and_deactivate_calendar(org_id: int, calendar_source_id: int):
     """
     Deletes all events associated with a calendar source
     and deactivates the calendar source for the given org.
+
+    curl -X DELETE \
+    http://localhost:5001/api/organizations/<org_id>/calendar-sources/<calendar_source_id>/events
     """
     db = g.db
     try:
