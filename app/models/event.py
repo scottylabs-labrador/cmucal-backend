@@ -10,7 +10,7 @@ from app.models.models import Event, RecurrenceRule, EventOccurrence, Recurrence
 
 ### need to check type of start_datetime, end_datetime before using them
 def save_event(db, org_id: int, category_id: int, title: str, start_datetime: str, end_datetime: str, 
-                 is_all_day: bool, user_edited: List[int], semester: str = "unknown", description: str = None, 
+                 is_all_day: bool, event_timezone: str, user_edited: List[int], semester: str = "unknown", description: str = None, 
                  location: str = None, source_url: str = None, event_type: str = None):
     """
     Create a new event in the database.
@@ -47,7 +47,8 @@ def save_event(db, org_id: int, category_id: int, title: str, start_datetime: st
         semester=semester,
         source_url=source_url,
         event_type=event_type,
-        user_edited=user_edited
+        user_edited=user_edited,
+        event_timezone=event_timezone
     )
     db.add(event)
     db.flush()      # Allocate event.id without committing

@@ -2,16 +2,21 @@ import pytest
 from app.models.models import Event, CalendarSource
 from app.services.ical import import_ical_feed_using_helpers
 from app.models.calendar_source import create_calendar_source
+from datetime import datetime, timezone, timedelta
 
+dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+dtstart = (
+    datetime.now(timezone.utc) + timedelta(days=1)
+).strftime("%Y%m%dT%H%M%SZ")
 
-SIMPLE_ICS = """BEGIN:VCALENDAR
+SIMPLE_ICS = f"""BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Test//EN
 BEGIN:VEVENT
 UID:test-uid-123
-DTSTAMP:20250101T000000Z
-DTSTART:20250110T150000Z
-DTEND:20250110T160000Z
+DTSTAMP:{dtstamp}
+DTSTART:{dtstart}
+DTEND:{dtstart}
 SUMMARY:Test Event
 DESCRIPTION:Hello world
 LOCATION:Test Room

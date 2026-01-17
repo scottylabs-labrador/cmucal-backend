@@ -115,7 +115,7 @@ def _parse_iso(iso_str: Optional[str]) -> Optional[datetime]:
         iso_str = iso_str[:-1] + "+00:00"
     return datetime.fromisoformat(iso_str)
 
-def _parse_iso_aware(s: str = None):
+def _parse_iso_aware(s: str = None, timezone: ZoneInfo = None) -> Optional[datetime]:
     if not s:
         return None
     # Support trailing 'Z'
@@ -123,8 +123,11 @@ def _parse_iso_aware(s: str = None):
         s = s[:-1] + "+00:00"
     dt = datetime.fromisoformat(s) if isinstance(s, str) else s
     # Ensure tz-aware
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+    if timezone:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone)
+        else:
+            dt = dt.astimezone(timezone)
     return dt
 
 def convert_to_iso8601(dt_str):

@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 import pytest
 from datetime import datetime, timezone, timedelta
 
@@ -11,10 +12,12 @@ def event_factory(db, org_factory, category_factory):
         org = kwargs.pop("org", None) or org_factory()
         category = kwargs.pop("category", None) or category_factory(org_id=org.id)
         calendar_source_id = kwargs.pop("calendar_source_id", None)
+        event_timezone = kwargs.pop("event_timezone", "America/New_York")
+        event_tz = ZoneInfo(event_timezone)
 
         start = kwargs.pop(
             "start_datetime",
-            datetime(2026, 1, 15, 18, 0, tzinfo=timezone.utc),
+            datetime(2026, 1, 15, 18, 0, tzinfo=event_tz).astimezone(timezone.utc),
         )
 
         event = Event(
@@ -28,6 +31,7 @@ def event_factory(db, org_factory, category_factory):
             start_datetime=start,
             end_datetime=kwargs.pop("end_datetime", start + timedelta(hours=2)),
             is_all_day=kwargs.pop("is_all_day", False),
+            event_timezone=event_timezone,
             semester=kwargs.pop("semester", "Spring_26"),
 
             user_edited=kwargs.pop("user_edited", []),

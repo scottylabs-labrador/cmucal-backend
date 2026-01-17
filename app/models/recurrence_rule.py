@@ -10,7 +10,7 @@ from dateutil.rrule import (
 from typing import List, Optional, Union
 from dateutil.parser import parse as parse_datetime
 
-from app.utils.date import ensure_aware_datetime
+from app.utils.date import ensure_aware_datetime, _ensure_aware
 
 def add_recurrence_rule(db, event_id: int, frequency: FrequencyType,  
                         interval: int, start_datetime: str, count: int = None, until: str = None, 
@@ -104,7 +104,7 @@ def parse_by_day_array(by_day_list: Optional[List[str]]) -> Optional[List[Union[
     return byweekday if byweekday else None
 
 
-def get_rrule_from_db_rule(rule) -> rrule:
+def get_rrule_from_db_rule(rule, event_tz) -> rrule:
     """
     Constructs a dateutil.rrule object from a database recurrence rule.
     Assumes `rule` has attributes: frequency, interval, start_datetime, count, until,
@@ -112,6 +112,7 @@ def get_rrule_from_db_rule(rule) -> rrule:
     """
     assert rule.start_datetime.tzinfo is not None, \
         "RRULE start_datetime must be tz-aware"
+    assert event_tz is not None, "event_tz must not be None"
     
     freq_map = {
         'DAILY': DAILY,
@@ -127,9 +128,15 @@ def get_rrule_from_db_rule(rule) -> rrule:
         raise ValueError(f"Unsupported frequency: {rule.frequency.value}")
 
     interval = rule.interval or 1
-    start_datetime = rule.start_datetime
     count = rule.count
-    until = rule.until
+    
+    # generate RRULE in local time
+    dtstart = _ensure_aware(rule.start_datetime).astimezone(event_tz)
+
+    until = None
+    if rule.until:
+        until = _ensure_aware(rule.until).astimezone(event_tz)
+
 
     by_day_array = parse_by_day_array(rule.by_day or [])
     by_month = rule.by_month
@@ -137,7 +144,7 @@ def get_rrule_from_db_rule(rule) -> rrule:
 
     kwargs = {
         "freq": freq,
-        "dtstart": start_datetime,
+        "dtstart": dtstart,
         "interval": interval,
     }
     if count:
@@ -150,6 +157,9 @@ def get_rrule_from_db_rule(rule) -> rrule:
         kwargs["bymonth"] = [by_month] if isinstance(by_month, int) else by_month
     if by_month_day:
         kwargs["bymonthday"] = [by_month_day] if isinstance(by_month_day, int) else by_month_day
+
+    # Guardrail (prevents future regressions)
+    assert kwargs["dtstart"].tzinfo == event_tz
 
     return rrule(**kwargs)
 

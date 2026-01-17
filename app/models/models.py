@@ -333,6 +333,7 @@ class Event(Base):
     start_datetime: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     end_datetime: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     is_all_day: Mapped[bool] = mapped_column(Boolean)
+    event_timezone: Mapped[str] = mapped_column(Text, nullable=False)
     location: Mapped[str] = mapped_column(Text)
     # Can be UNKOWN but not null
     semester: Mapped[str] = mapped_column(Text)

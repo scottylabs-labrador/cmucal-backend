@@ -332,6 +332,7 @@ def _process_uid_group_with_helpers(
             existing.start_datetime = _ensure_aware(dtstart)
             existing.end_datetime = _ensure_aware(dtend) if dtend else _ensure_aware(dtstart)
             existing.is_all_day = is_all_day
+            existing.event_timezone = str(calendar_tz)
             existing.source_url = source_url
             existing.event_type = default_event_type
             existing.semester = event_semester
@@ -363,6 +364,7 @@ def _process_uid_group_with_helpers(
             start_datetime=start_iso,
             end_datetime=end_iso,
             is_all_day=is_all_day,
+            event_timezone=str(calendar_tz),
             location=location or None,
             source_url=source_url,
             event_type=default_event_type,

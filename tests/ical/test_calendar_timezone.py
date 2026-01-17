@@ -71,7 +71,7 @@ END:VCALENDAR
 
     event = db.query(Event).filter_by(ical_uid="test-gcal-1").one()
 
-    assert event.start_datetime.tzinfo is not None
+    assert event.event_timezone is not None
     assert event.start_datetime.hour == 22  # 18 EDT → 22 UTC
 
     local = event.start_datetime.astimezone(ZoneInfo("America/New_York"))

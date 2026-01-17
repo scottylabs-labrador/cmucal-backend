@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 from flask import Blueprint, jsonify, request, g
 from app.models.user import get_user_by_clerk_id
 from app.models.event import save_event, get_event_by_id
@@ -18,6 +19,7 @@ from sqlalchemy import cast, Date, or_, delete, select
 from app.services.ical import delete_events_for_calendar_source, import_ical_feed_using_helpers
 from app.errors.ical import ICalFetchError
 from app.models.calendar_source import create_calendar_source
+from app.utils.date import _parse_iso_aware
 
 
 events_bp = Blueprint("events", __name__)
@@ -36,6 +38,7 @@ def create_event_record():
         start_datetime = data.get("start_datetime")
         end_datetime = data.get("end_datetime")
         is_all_day = data.get("is_all_day", False)
+        event_timezone = data.get("event_timezone", None)
         location = data.get("location", None)
         semester = data.get("semester", None)
         source_url = data.get("source_url", None)
@@ -50,8 +53,8 @@ def create_event_record():
         if not org_id or not category_id or not clerk_id:
             return jsonify({"error": "Missing org_id or category_id or clerk_id"}), 400
 
-        if not title or not start_datetime or not end_datetime or not recurrence:
-            return jsonify({"error": "Missing required fields: title, start_datetime, end_datetime, recurrence"}), 400
+        if not title or not start_datetime or not end_datetime or not recurrence or not event_timezone:
+            return jsonify({"error": "Missing required fields: title, start_datetime, end_datetime, recurrence, event_timezone"}), 400
 
         user = get_user_by_clerk_id(db, clerk_id)
         if not user:
@@ -70,8 +73,9 @@ def create_event_record():
                             semester=semester,
                             source_url=source_url,
                             event_type=event_type,
-                            user_edited=user_edited)
-        
+                            user_edited=user_edited,
+                            event_timezone=event_timezone)
+
         if not event:
             return jsonify({"error": "Event creation failed"}), 500
         
@@ -244,40 +248,6 @@ def read_gcal_link():
             "message": str(e),
         }), 500
 
-@events_bp.route("/delete_events_and_deactivate_calendar", methods=["DELETE"])
-def delete_events_and_deactivate_calendar():
-    """Deletes all events associated with a calendar source ID and deactivates it"""
-    db = g.db
-    try:
-        data = request.get_json()
-        calendar_source_id = data.get("calendar_source_id")
-
-        if not calendar_source_id:
-            return jsonify({"error": "Missing calendar_source_id"}), 400
-
-        deleted_event_ids = delete_events_for_calendar_source(
-            db=db,
-            calendar_source_id=calendar_source_id,
-        )
-
-        db.commit()
-
-        return jsonify({
-            "status": "ok",
-            "calendar_source_id": calendar_source_id,
-            "deleted_events": len(deleted_event_ids),
-            "event_ids": deleted_event_ids,
-        }), 200
-
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
-
-    except Exception as e:
-        import traceback
-        print("❌ Exception:", traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
-
-
 # @events_bp.route("/generate_more_occurrences", methods=["POST"])
 # def generate_more_occurrences():
 #     db = g.db
@@ -348,20 +318,26 @@ def create_single_event_occurrence():
             return jsonify({"error": "Missing required fields"}), 400
         
         event = db.query(Event).filter(Event.id == event_id).first()
+        event_tz = ZoneInfo(event.event_timezone)
         if not recurrence == "EXCEPTION":
             event_saved_at = event.last_updated_at
         else:
             event_saved_at = datetime.utcnow()
         if not event:
             return jsonify({"error": "Event not found"}), 404
+        
+        start_dt = _parse_iso_aware(start_datetime, event_tz)
+        end_dt   = _parse_iso_aware(end_datetime, event_tz)
+        if start_dt.tzinfo is None or end_dt.tzinfo is None:
+            return jsonify({"error": "Datetime must be timezone-aware"}), 400
 
         event_occurrence = save_event_occurrence(db, 
                                             event_id=event_id, 
                                             org_id=org_id, 
                                             category_id=category_id, 
                                             title=title,
-                                            start_datetime=start_datetime,
-                                            end_datetime=end_datetime,
+                                            start_datetime=start_dt,
+                                            end_datetime=end_dt,
                                             recurrence=recurrence,
                                             event_saved_at=event_saved_at,
                                             is_all_day=is_all_day,

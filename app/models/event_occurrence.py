@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 from app.models.models import (
     Event, RecurrenceRule, EventOccurrence,
     RecurrenceExdate, RecurrenceRdate, EventOverride, RecurrenceOverride,
@@ -85,7 +86,9 @@ def apply_overrides(
         title    = event.title
         desc     = event.description
         loc      = event.location
-
+    
+    start_dt = normalize_occurrence(start_dt, ZoneInfo(event.event_timezone))
+    end_dt   = normalize_occurrence(end_dt, ZoneInfo(event.event_timezone))
     return start_dt, end_dt, title, desc, loc
 
 def delete_event_occurrences_by_event_id(db, event_id: int):
@@ -161,16 +164,17 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
     if event.id == TRACE_EVENT_ID:
         print("🧭 TRACE: populate_event_occurrences()")
 
+    event_tz = ZoneInfo(event.event_timezone)
     # Defensive duration (end could be equal to start in some feeds)
-    end_datetime = _parse_iso_aware(event.end_datetime) if event.end_datetime else None
-    start_datetime = _parse_iso_aware(event.start_datetime) if event.start_datetime else None
-    event_tz = event.start_datetime.tzinfo
+    end_datetime = _parse_iso_aware(event.end_datetime, event_tz) if event.end_datetime else None
+    start_datetime = _parse_iso_aware(event.start_datetime, event_tz) if event.start_datetime else None
+
     trace(event, "event_tz =", event_tz)
 
     trace(event,
         "start_datetime =", event.start_datetime,
         "end_datetime =", event.end_datetime,
-        "tz =", event.start_datetime.tzinfo
+        "tz =", event_tz
     )
 
     duration = (end_datetime or start_datetime) - start_datetime
@@ -200,7 +204,7 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
     )
 
     # Build an rrule iterator from temp_rule
-    rrule_iter = list(get_rrule_from_db_rule(temp_rule))
+    rrule_iter = list(get_rrule_from_db_rule(temp_rule, event_tz))
     trace(event, "RRULE count =", len(rrule_iter))
 
     # Pull EXDATE/RDATE/Overrides/RecurrenceOverrides from DB
@@ -277,12 +281,12 @@ def populate_event_occurrences(db, event: Event, rule: RecurrenceRule):
             source_url=event.source_url,
         ))
 
-        seen_starts.add(start_dt)
+        seen_starts.add(start_dt.astimezone(timezone.utc))
         count += 1
 
     # 2) Add RDATEs that weren't already covered
     for rdate in sorted(rdates):
-        if rdate in exdates or rdate in seen_starts:
+        if rdate in exdates or rdate.astimezone(timezone.utc) in seen_starts:
             continue
 
         start_dt, end_dt, title, desc, loc = apply_overrides(
