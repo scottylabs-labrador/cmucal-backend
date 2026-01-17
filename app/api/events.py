@@ -460,7 +460,7 @@ def get_all_events():
 
         # only select some columns to save loading cost
         events = db.query(Event.id, Event.title, Event.start_datetime, Event.end_datetime, 
-            Event.location, Event.org_id, Event.category_id).join(Event.org)
+            Event.location, Event.org_id, Event.category_id, Event.event_timezone).join(Event.org)
 
         
         # if search term is applied, filter results
@@ -497,7 +497,8 @@ def get_all_events():
                 "location": e[4],
                 "org_id": e[5],
                 "category_id": e[6],
-                "user_saved": e[0] in added_ids
+                "user_saved": e[0] in added_ids,
+                "event_timezone": e[7]
             }
             for e in events
         ]
