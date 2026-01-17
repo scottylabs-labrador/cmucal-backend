@@ -12,7 +12,8 @@
     - Acceptable formats include `Spring_xx`, `Fall_xx`, `Summer1_xx`, `Summer2_xx`.
     - Feel free to change the start and end dates of each semester in `scraper/helpers/semester.py` if needed.
 3. Run `python -m scraper.scripts.export_soc` to scrape data and add events to the DB.
-    - first creates org and category for each SOC event if those don't exist, then add events, recurrence_rules, and calls an endpoint to generate event occurrences.
+    - the script first creates org and category for each SOC event if those don't exist, then add events, recurrence_rules, and calls an endpoint to generate event occurrences.
+    - generating all events could take around an hour, please keep the terminal open during that time.
 
 * If need to delete, run this:
 ```
