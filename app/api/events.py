@@ -131,7 +131,7 @@ def create_event_record():
             if not recurrence == "EXCEPTION":
                 event_saved_at = event.last_updated_at
             else:
-                event_saved_at = datetime.utcnow()
+                event_saved_at = datetime.now(timezone.utc)
             
             event_occurrence = save_event_occurrence(db, 
                                                 event_id=event.id, 
@@ -322,7 +322,7 @@ def create_single_event_occurrence():
         if not recurrence == "EXCEPTION":
             event_saved_at = event.last_updated_at
         else:
-            event_saved_at = datetime.utcnow()
+            event_saved_at = datetime.now(timezone.utc)
         if not event:
             return jsonify({"error": "Event not found"}), 404
         
@@ -810,7 +810,7 @@ def user_save_event():
             user_id = user.id,
             event_id = data["event_id"],
             google_event_id = data["google_event_id"],
-            saved_at = datetime.utcnow(),
+            saved_at = datetime.now(timezone.utc),
         )
         db.add(new_entry)
         db.commit()
